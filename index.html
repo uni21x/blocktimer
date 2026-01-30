@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Block-Timer (lokal)</title>
+  <style>
+    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
+    body { margin: 0; background: #0b0c10; color: #eaf0ff; }
+    header { padding: 16px 18px; border-bottom: 1px solid #20263a; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap;}
+    header h1 { margin: 0; font-size: 18px; }
+    header .sub { opacity: .8; font-size: 13px; }
+    main { padding: 18px; display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
+    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+
+    .card { background: #10131c; border: 1px solid #20263a; border-radius: 14px; padding: 14px; }
+    .card h2 { margin: 0 0 10px; font-size: 14px; opacity: .9; }
+    .row { display:flex; gap: 10px; flex-wrap:wrap; align-items:center; }
+    .row > * { flex: 0 0 auto; }
+    label { font-size: 12px; opacity: .85; display:block; margin-bottom: 4px; }
+    input, button, select, textarea {
+      border-radius: 10px; border: 1px solid #2a3455; background: #0c0f17; color: #eaf0ff;
+      padding: 9px 10px; font-size: 13px;
+    }
+    input[type="number"] { width: 92px; }
+    input[type="text"] { width: 220px; }
+    button { cursor: pointer; }
+    button.primary { background: #1a2450; border-color: #36438a; }
+    button.danger { background: #2a0f16; border-color: #6b1f33; }
+    button.ghost { background: transparent; }
+    button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .list { display:flex; flex-direction:column; gap:10px; }
+    .item { border: 1px solid #20263a; border-radius: 12px; padding: 10px; background: #0c0f17; }
+    .item .top { display:flex; justify-content:space-between; gap:10px; align-items:center; }
+    .badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid #2a3455; opacity: .9; }
+    .badge.todo { background: #0f1426; }
+    .badge.running { background: #1a2450; border-color:#36438a; }
+    .badge.done { background: #0f2a1c; border-color:#2d7a52; }
+    .badge.paused { background: #2a1f0f; border-color:#7a5a2d; }
+    .meta { font-size: 12px; opacity: .82; margin-top: 6px; display:flex; gap:10px; flex-wrap:wrap; }
+    .actions { margin-top: 8px; display:flex; gap: 8px; flex-wrap:wrap; }
+
+    .hr { height:1px; background:#20263a; margin: 12px 0; }
+    .small { font-size: 12px; opacity: .8; }
+    .msg { font-size: 12px; opacity: .9; padding: 10px; border-radius: 10px; border: 1px solid #2a3455; background: #0c0f17; }
+    .msg.warn { border-color:#6b5b1f; background:#15120b; }
+    .msg.ok { border-color:#2d7a52; background:#0d1510; }
+    textarea { width: 100%; min-height: 120px; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>Block-Timer (lokal)</h1>
+  <div class="sub" id="todayLabel"></div>
+  <div class="sub" id="summaryLabel"></div>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Templates (täglich wiederkehrend)</h2>
+
+    <div class="row" style="align-items:flex-end; gap: 12px;">
+      <div>
+        <label>Block-Name</label>
+        <input id="tplName" type="text" placeholder="z. B. Boot.dev" />
+      </div>
+      <div>
+        <label>Minuten</label>
+        <input id="tplMinutes" type="number" min="1" step="1" value="75" />
+      </div>
+      <div>
+        <label>Wiederholungen</label>
+        <input id="tplReps" type="number" min="1" max="10" step="1" value="1" />
+      </div>
+      <button class="primary" id="addTplBtn">Template hinzufügen</button>
+    </div>
+
+    <div class="hr"></div>
+
+    <div class="list" id="tplList"></div>
+
+    <div class="hr"></div>
+
+    <div class="row">
+      <button id="regenTodayBtn" class="danger" title="Überschreibt die heutigen Blöcke anhand der Templates.">
+        Heute neu aus Templates erzeugen (überschreibt)
+      </button>
+      <label class="row small" style="gap:8px;">
+        <input type="checkbox" id="soundToggle" checked />
+        Ton bei Timer-Ende
+      </label>
+    </div>
+
+    <div id="tplMsg" class="msg warn" style="margin-top:10px; display:none;"></div>
+  </section>
+
+  <section class="card">
+    <h2>Heute</h2>
+    <div id="runMsg" class="msg warn" style="display:none; margin-bottom:10px;"></div>
+    <div class="list" id="todayList"></div>
+
+    <div class="hr"></div>
+
+    <h2>Verlauf</h2>
+    <div class="small">Zeigt die letzten 7 Tage (lokal gespeichert).</div>
+    <div class="list" id="historyList" style="margin-top:10px;"></div>
+
+    <div class="hr"></div>
+
+    <h2>Export / Import</h2>
+    <div class="row">
+      <button id="exportBtn" class="ghost">Export (JSON)</button>
+      <button id="importBtn" class="ghost">Import (JSON)</button>
+      <button id="wipeBtn" class="danger" title="Löscht alles lokal gespeicherte.">Alles löschen</button>
+    </div>
+    <div id="ioBox" style="display:none; margin-top:10px;">
+      <textarea id="ioText" placeholder="JSON hier rein..."></textarea>
+      <div class="row" style="margin-top:10px;">
+        <button id="ioApplyBtn" class="primary">Import anwenden</button>
+        <button id="ioCloseBtn" class="ghost">Schließen</button>
+      </div>
+      <div class="small" style="margin-top:8px;">Tipp: Export kopieren → als Backup irgendwo ablegen.</div>
+    </div>
+  </section>
+</main>
+
+<script>
+(() => {
+  const K_TPL = "bt.templates.v1";
+  const K_DAYS = "bt.days.v1";
+  const K_CFG = "bt.cfg.v1";
+
+  const $ = (id) => document.getElementById(id);
+  const todayLabel = $("todayLabel");
+  const summaryLabel = $("summaryLabel");
+  const tplList = $("tplList");
+  const todayList = $("todayList");
+  const historyList = $("historyList");
+  const tplMsg = $("tplMsg");
+  const runMsg = $("runMsg");
+
+  const soundToggle = $("soundToggle");
+  const tplName = $("tplName");
+  const tplMinutes = $("tplMinutes");
+  const tplReps = $("tplReps");
+  const addTplBtn = $("addTplBtn");
+  const regenTodayBtn = $("regenTodayBtn");
+
+  const exportBtn = $("exportBtn");
+  const importBtn = $("importBtn");
+  const wipeBtn = $("wipeBtn");
+  const ioBox = $("ioBox");
+  const ioText = $("ioText");
+  const ioApplyBtn = $("ioApplyBtn");
+  const ioCloseBtn = $("ioCloseBtn");
+
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const prettyDate = (d = new Date()) => d.toLocaleDateString("de-DE", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
+
+  const uid = () => Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
+
+  const loadJSON = (key, fallback) => {
+    try {
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch { return fallback; }
+  };
+  const saveJSON = (key, value) => localStorage.setItem(key, JSON.stringify(value));
+
+  let templates = loadJSON(K_TPL, []);
+  let days = loadJSON(K_DAYS, {}); // { "YYYY-MM-DD": { tasks:[...], createdAt } }
+  let cfg = loadJSON(K_CFG, { sound: true });
+
+  soundToggle.checked = !!cfg.sound;
+
+  let audioCtx = null;
+  const beep = () => {
+    if (!cfg.sound) return;
+    try {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const o = audioCtx.createOscillator();
+      const g = audioCtx.createGain();
+      o.type = "sine";
+      o.frequency.value = 880;
+      g.gain.value = 0.04;
+      o.connect(g);
+      g.connect(audioCtx.destination);
+      o.start();
+      setTimeout(() => { o.stop(); }, 180);
+    } catch {
+      // wenn Audio blockiert ist, ignorieren
+    }
+  };
+
+  const ensureToday = (forceRegen = false) => {
+    const dk = dateKey();
+    if (!days[dk] || forceRegen) {
+      const tasks = [];
+      for (const t of templates) {
+        const reps = Math.max(1, Math.min(10, Number(t.reps || 1)));
+        for (let i = 1; i <= reps; i++) {
+          const suffix = reps > 1 ? ` (${i}/${reps})` : "";
+          tasks.push({
+            id: uid(),
+            name: (t.name || "Block") + suffix,
+            minutes: Number(t.minutes || 25),
+            status: "todo",
+            startedAt: null,
+            endsAt: null,
+            remainingMs: null,
+            completedAt: null,
+          });
+        }
+      }
+      days[dk] = { tasks, createdAt: Date.now() };
+      saveJSON(K_DAYS, days);
+    }
+  };
+
+  const getTodayTasks = () => {
+    const dk = dateKey();
+    return (days[dk]?.tasks) || [];
+  };
+
+  const setTodayTasks = (tasks) => {
+    const dk = dateKey();
+    if (!days[dk]) days[dk] = { tasks: [], createdAt: Date.now() };
+    days[dk].tasks = tasks;
+    saveJSON(K_DAYS, days);
+  };
+
+  const anyRunning = () => getTodayTasks().some(t => t.status === "running");
+
+  const fmtLeft = (ms) => {
+    const s = Math.max(0, Math.floor(ms / 1000));
+    const m = Math.floor(s / 60);
+    const r = s % 60;
+    if (m >= 60) {
+      const h = Math.floor(m / 60);
+      const mm = m % 60;
+      return `${h}:${pad(mm)}:${pad(r)}`;
+    }
+    return `${m}:${pad(r)}`;
+  };
+
+  const showMsg = (el, text, kind="warn") => {
+    el.className = "msg " + (kind === "ok" ? "ok" : "warn");
+    el.textContent = text;
+    el.style.display = "block";
+    setTimeout(() => { el.style.display = "none"; }, 3500);
+  };
+
+  const renderTemplates = () => {
+    tplList.innerHTML = "";
+    if (!templates.length) {
+      const div = document.createElement("div");
+      div.className = "small";
+      div.textContent = "Noch keine Templates. Lege Dir Blöcke an (z. B. Boot.dev 75 Min, Wiederholungen 2).";
+      tplList.appendChild(div);
+      return;
+    }
+    templates.forEach(t => {
+      const item = document.createElement("div");
+      item.className = "item";
+      item.innerHTML = `
+        <div class="top">
+          <div><strong>${escapeHTML(t.name)}</strong></div>
+          <span class="badge todo">${Number(t.minutes)} Min · ×${Number(t.reps||1)}</span>
+        </div>
+        <div class="actions">
+          <button class="ghost" data-act="edit" data-id="${t.id}">Bearbeiten</button>
+          <button class="danger" data-act="del" data-id="${t.id}">Löschen</button>
+        </div>
+      `;
+      item.addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+        const act = btn.dataset.act;
+        const id = btn.dataset.id;
+        const idx = templates.findIndex(x => x.id === id);
+        if (idx < 0) return;
+        if (act === "del") {
+          templates.splice(idx, 1);
+          saveJSON(K_TPL, templates);
+          renderTemplates();
+          showMsg(tplMsg, "Template gelöscht. (Heute bleibt unverändert, außer Du erzeugst neu.)", "ok");
+          return;
+        }
+        if (act === "edit") {
+          const cur = templates[idx];
+          const name = prompt("Name:", cur.name);
+          if (name === null) return;
+          const minutes = prompt("Minuten:", String(cur.minutes));
+          if (minutes === null) return;
+          const reps = prompt("Wiederholungen (1-10):", String(cur.reps || 1));
+          if (reps === null) return;
+          cur.name = (name || "").trim() || cur.name;
+          cur.minutes = Math.max(1, Math.floor(Number(minutes) || cur.minutes));
+          cur.reps = Math.max(1, Math.min(10, Math.floor(Number(reps) || (cur.reps||1))));
+          templates[idx] = cur;
+          saveJSON(K_TPL, templates);
+          renderTemplates();
+          showMsg(tplMsg, "Template gespeichert. (Heute bleibt unverändert, außer Du erzeugst neu.)", "ok");
+        }
+      });
+      tplList.appendChild(item);
+    });
+  };
+
+  const renderToday = () => {
+    const tasks = getTodayTasks();
+    todayList.innerHTML = "";
+    if (!tasks.length) {
+      const div = document.createElement("div");
+      div.className = "msg warn";
+      div.textContent = "Heute sind noch keine Blöcke erzeugt. Lege Templates an oder klicke „Heute neu aus Templates erzeugen“.";
+      todayList.appendChild(div);
+      summaryLabel.textContent = "";
+      return;
+    }
+
+    const done = tasks.filter(t => t.status === "done").length;
+    const running = tasks.filter(t => t.status === "running").length;
+    summaryLabel.textContent = `• Heute: ${done}/${tasks.length} erledigt` + (running ? ` • ${running} läuft` : "");
+
+    tasks.forEach(t => {
+      const item = document.createElement("div");
+      item.className = "item";
+
+      const statusBadge =
+        t.status === "running" ? `<span class="badge running">läuft</span>` :
+        t.status === "paused" ? `<span class="badge paused">pausiert</span>` :
+        t.status === "done" ? `<span class="badge done">erledigt</span>` :
+        `<span class="badge todo">offen</span>`;
+
+      const now = Date.now();
+      const left =
+        (t.status === "running" && t.endsAt) ? Math.max(0, t.endsAt - now) :
+        (t.status === "paused" && t.remainingMs != null) ? Math.max(0, t.remainingMs) :
+        null;
+
+      item.innerHTML = `
+        <div class="top">
+          <div><strong>${escapeHTML(t.name)}</strong></div>
+          <div class="row" style="gap:8px;">
+            <span class="badge todo">${t.minutes} Min</span>
+            ${statusBadge}
+          </div>
+        </div>
+        <div class="meta">
+          ${(t.status === "running" || t.status === "paused") ? `<div>Rest: <strong>${fmtLeft(left)}</strong></div>` : ""}
+          ${t.status === "done" && t.completedAt ? `<div>Fertig: ${new Date(t.completedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}</div>` : ""}
+        </div>
+        <div class="actions">
+          <button class="primary" data-act="start" ${t.status !== "todo" ? "disabled" : ""}>Start (Timer)</button>
+          <button class="ghost" data-act="pause" ${t.status !== "running" ? "disabled" : ""}>⏸</button>
+          <button class="ghost" data-act="resume" ${t.status !== "paused" ? "disabled" : ""}>▶</button>
+          <button class="ghost" data-act="done" ${t.status === "done" ? "disabled" : ""}>Erledigt (ohne Timer)</button>
+          <button class="ghost" data-act="undo" ${t.status === "todo" ? "disabled" : ""}>Zurücksetzen</button>
+        </div>
+      `;
+
+      item.addEventListener("click", (e) => {
+        const btn = e.target.closest("button");
+        if (!btn) return;
+        const act = btn.dataset.act;
+        const tasksNow = getTodayTasks();
+        const idx = tasksNow.findIndex(x => x.id === t.id);
+        if (idx < 0) return;
+
+        if (act === "start") {
+          if (anyRunning()) {
+            showMsg(runMsg, "Es läuft bereits ein Block. Beende/erledige den zuerst.");
+            return;
+          }
+          // user gesture => AudioContext kann initialisiert werden
+          beep(); // kurzer Klick-Sound, damit AudioContext "freigeschaltet" ist
+          const tt = tasksNow[idx];
+          tt.status = "running";
+          tt.startedAt = Date.now();
+          tt.endsAt = Date.now() + tt.minutes * 60_000;
+          tt.completedAt = null;
+          tt.remainingMs = null;
+          tasksNow[idx] = tt;
+          setTodayTasks(tasksNow);
+          renderToday();
+          return;
+        }
+
+        if (act === "pause") {
+          const tt = tasksNow[idx];
+          if (tt.status !== "running" || !tt.endsAt) return;
+          tt.status = "paused";
+          tt.remainingMs = Math.max(0, tt.endsAt - Date.now());
+          tt.endsAt = null;
+          tasksNow[idx] = tt;
+          setTodayTasks(tasksNow);
+          renderToday();
+          return;
+        }
+
+        if (act === "resume") {
+          if (anyRunning()) {
+            showMsg(runMsg, "Es läuft bereits ein Block. Beende/erledige den zuerst.");
+            return;
+          }
+          const tt = tasksNow[idx];
+          if (tt.status !== "paused") return;
+          const remaining = Math.max(0, Number(tt.remainingMs || 0));
+          tt.status = "running";
+          tt.endsAt = Date.now() + remaining;
+          tt.remainingMs = null;
+          tasksNow[idx] = tt;
+          setTodayTasks(tasksNow);
+          renderToday();
+          return;
+        }
+
+        if (act === "done") {
+          const tt = tasksNow[idx];
+          tt.status = "done";
+          tt.startedAt = tt.startedAt || null;
+          tt.endsAt = null;
+          tt.completedAt = Date.now();
+          tt.remainingMs = null;
+          tasksNow[idx] = tt;
+          setTodayTasks(tasksNow);
+          renderToday();
+          return;
+        }
+
+        if (act === "undo") {
+          const tt = tasksNow[idx];
+          tt.status = "todo";
+          tt.startedAt = null;
+          tt.endsAt = null;
+          tt.completedAt = null;
+          tt.remainingMs = null;
+          tasksNow[idx] = tt;
+          setTodayTasks(tasksNow);
+          renderToday();
+          return;
+        }
+      });
+
+      todayList.appendChild(item);
+    });
+  };
+
+  const renderHistory = () => {
+    historyList.innerHTML = "";
+    const keys = Object.keys(days).sort().reverse();
+    const last7 = keys.slice(0, 7);
+
+    if (!last7.length) {
+      const div = document.createElement("div");
+      div.className = "small";
+      div.textContent = "Noch kein Verlauf.";
+      historyList.appendChild(div);
+      return;
+    }
+
+    last7.forEach(k => {
+      const day = days[k];
+      const tasks = day?.tasks || [];
+      const done = tasks.filter(t => t.status === "done").length;
+      const card = document.createElement("div");
+      card.className = "item";
+      card.innerHTML = `
+        <div class="top">
+          <div><strong>${k}</strong></div>
+          <span class="badge ${done === tasks.length && tasks.length ? "done":"todo"}">${done}/${tasks.length} erledigt</span>
+        </div>
+        <div class="small" style="margin-top:6px; opacity:.8;">
+          ${tasks.slice(0,6).map(t => `${escapeHTML(t.name)}${t.status==="done" ? " ✓" : ""}`).join(" · ")}
+          ${tasks.length > 6 ? " …" : ""}
+        </div>
+      `;
+      historyList.appendChild(card);
+    });
+  };
+
+  const escapeHTML = (s) => String(s).replace(/[&<>"']/g, (c) => ({
+    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
+  }[c]));
+
+  const tick = () => {
+    const tasks = getTodayTasks();
+    const now = Date.now();
+    let changed = false;
+
+    for (const t of tasks) {
+      if (t.status === "running" && t.endsAt && now >= t.endsAt) {
+        t.status = "done";
+        t.completedAt = now;
+        t.endsAt = null;
+        changed = true;
+        beep();
+      }
+    }
+
+    if (changed) {
+      setTodayTasks(tasks);
+    }
+    // re-render für Restzeit
+    renderToday();
+  };
+
+  addTplBtn.addEventListener("click", () => {
+    const name = (tplName.value || "").trim();
+    const minutes = Math.max(1, Math.floor(Number(tplMinutes.value) || 25));
+    const reps = Math.max(1, Math.min(10, Math.floor(Number(tplReps.value) || 1)));
+
+    if (!name) {
+      showMsg(tplMsg, "Bitte gib einen Namen für das Template an.");
+      return;
+    }
+    templates.push({ id: uid(), name, minutes, reps });
+    saveJSON(K_TPL, templates);
+
+    tplName.value = "";
+    tplMinutes.value = String(minutes);
+    tplReps.value = "1";
+
+    renderTemplates();
+    showMsg(tplMsg, "Template angelegt. Erzeuge heute neu, wenn Du es sofort in „Heute“ willst.", "ok");
+  });
+
+  regenTodayBtn.addEventListener("click", () => {
+    ensureToday(true);
+    renderToday();
+    renderHistory();
+    showMsg(tplMsg, "Heute wurde neu aus Templates erzeugt (überschrieben).", "ok");
+  });
+
+  soundToggle.addEventListener("change", () => {
+    cfg.sound = !!soundToggle.checked;
+    saveJSON(K_CFG, cfg);
+  });
+
+  exportBtn.addEventListener("click", () => {
+    const payload = { templates, days, cfg };
+    ioText.value = JSON.stringify(payload, null, 2);
+    ioBox.style.display = "block";
+  });
+
+  importBtn.addEventListener("click", () => {
+    ioText.value = "";
+    ioBox.style.display = "block";
+    ioText.placeholder = "Füge hier Deinen Export ein und klicke „Import anwenden“.";
+  });
+
+  ioApplyBtn.addEventListener("click", () => {
+    try {
+      const obj = JSON.parse(ioText.value);
+      if (!obj || typeof obj !== "object") throw new Error("Ungültig");
+      templates = Array.isArray(obj.templates) ? obj.templates : templates;
+      days = (obj.days && typeof obj.days === "object") ? obj.days : days;
+      cfg = (obj.cfg && typeof obj.cfg === "object") ? obj.cfg : cfg;
+      saveJSON(K_TPL, templates);
+      saveJSON(K_DAYS, days);
+      saveJSON(K_CFG, cfg);
+      soundToggle.checked = !!cfg.sound;
+      ensureToday(false);
+      renderTemplates();
+      renderToday();
+      renderHistory();
+      showMsg(tplMsg, "Import übernommen.", "ok");
+    } catch (e) {
+      showMsg(tplMsg, "Import fehlgeschlagen: JSON ist ungültig oder unvollständig.");
+    }
+  });
+
+  ioCloseBtn.addEventListener("click", () => {
+    ioBox.style.display = "none";
+  });
+
+  wipeBtn.addEventListener("click", () => {
+    const ok = confirm("Wirklich alles löschen? (Templates + Verlauf)");
+    if (!ok) return;
+    localStorage.removeItem(K_TPL);
+    localStorage.removeItem(K_DAYS);
+    localStorage.removeItem(K_CFG);
+    templates = [];
+    days = {};
+    cfg = { sound: true };
+    soundToggle.checked = true;
+    ensureToday(false);
+    renderTemplates();
+    renderToday();
+    renderHistory();
+    showMsg(tplMsg, "Alles gelöscht.", "ok");
+  });
+
+  // init
+  todayLabel.textContent = prettyDate(new Date()) + " • lokal gespeichert";
+  ensureToday(false);
+  renderTemplates();
+  renderToday();
+  renderHistory();
+
+  // tick every second
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
