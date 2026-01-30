@@ -37,6 +37,7 @@
     .badge.todo { background: #0f1426; }
     .badge.running { background: #1a2450; border-color:#36438a; }
     .badge.done { background: #0f2a1c; border-color:#2d7a52; }
+    .badge.paused { background: #2a1f0f; border-color:#7a5a2d; }
     .meta { font-size: 12px; opacity: .82; margin-top: 6px; display:flex; gap:10px; flex-wrap:wrap; }
     .actions { margin-top: 8px; display:flex; gap: 8px; flex-wrap:wrap; }
 
@@ -208,6 +209,7 @@
             status: "todo",
             startedAt: null,
             endsAt: null,
+            remainingMs: null,
             completedAt: null,
           });
         }
@@ -329,11 +331,15 @@
 
       const statusBadge =
         t.status === "running" ? `<span class="badge running">läuft</span>` :
+        t.status === "paused" ? `<span class="badge paused">pausiert</span>` :
         t.status === "done" ? `<span class="badge done">erledigt</span>` :
         `<span class="badge todo">offen</span>`;
 
       const now = Date.now();
-      const left = (t.status === "running" && t.endsAt) ? Math.max(0, t.endsAt - now) : null;
+      const left =
+        (t.status === "running" && t.endsAt) ? Math.max(0, t.endsAt - now) :
+        (t.status === "paused" && t.remainingMs != null) ? Math.max(0, t.remainingMs) :
+        null;
 
       item.innerHTML = `
         <div class="top">
@@ -344,11 +350,13 @@
           </div>
         </div>
         <div class="meta">
-          ${t.status === "running" ? `<div>Rest: <strong>${fmtLeft(left)}</strong></div>` : ""}
+          ${(t.status === "running" || t.status === "paused") ? `<div>Rest: <strong>${fmtLeft(left)}</strong></div>` : ""}
           ${t.status === "done" && t.completedAt ? `<div>Fertig: ${new Date(t.completedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}</div>` : ""}
         </div>
         <div class="actions">
           <button class="primary" data-act="start" ${t.status !== "todo" ? "disabled" : ""}>Start (Timer)</button>
+          <button class="ghost" data-act="pause" ${t.status !== "running" ? "disabled" : ""}>⏸</button>
+          <button class="ghost" data-act="resume" ${t.status !== "paused" ? "disabled" : ""}>▶</button>
           <button class="ghost" data-act="done" ${t.status === "done" ? "disabled" : ""}>Erledigt (ohne Timer)</button>
           <button class="ghost" data-act="undo" ${t.status === "todo" ? "disabled" : ""}>Zurücksetzen</button>
         </div>
@@ -374,6 +382,36 @@
           tt.startedAt = Date.now();
           tt.endsAt = Date.now() + tt.minutes * 60_000;
           tt.completedAt = null;
+          tt.remainingMs = null;
+          tasksNow[idx] = tt;
+          setTodayTasks(tasksNow);
+          renderToday();
+          return;
+        }
+
+        if (act === "pause") {
+          const tt = tasksNow[idx];
+          if (tt.status !== "running" || !tt.endsAt) return;
+          tt.status = "paused";
+          tt.remainingMs = Math.max(0, tt.endsAt - Date.now());
+          tt.endsAt = null;
+          tasksNow[idx] = tt;
+          setTodayTasks(tasksNow);
+          renderToday();
+          return;
+        }
+
+        if (act === "resume") {
+          if (anyRunning()) {
+            showMsg(runMsg, "Es läuft bereits ein Block. Beende/erledige den zuerst.");
+            return;
+          }
+          const tt = tasksNow[idx];
+          if (tt.status !== "paused") return;
+          const remaining = Math.max(0, Number(tt.remainingMs || 0));
+          tt.status = "running";
+          tt.endsAt = Date.now() + remaining;
+          tt.remainingMs = null;
           tasksNow[idx] = tt;
           setTodayTasks(tasksNow);
           renderToday();
@@ -386,6 +424,7 @@
           tt.startedAt = tt.startedAt || null;
           tt.endsAt = null;
           tt.completedAt = Date.now();
+          tt.remainingMs = null;
           tasksNow[idx] = tt;
           setTodayTasks(tasksNow);
           renderToday();
@@ -398,6 +437,7 @@
           tt.startedAt = null;
           tt.endsAt = null;
           tt.completedAt = null;
+          tt.remainingMs = null;
           tasksNow[idx] = tt;
           setTodayTasks(tasksNow);
           renderToday();
