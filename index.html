@@ -114,14 +114,7 @@
       <button id="importBtn" class="ghost">Import (JSON)</button>
       <button id="wipeBtn" class="danger" title="Löscht alles lokal gespeicherte.">Alles löschen</button>
     </div>
-    <div id="ioBox" style="display:none; margin-top:10px;">
-      <textarea id="ioText" placeholder="JSON hier rein..."></textarea>
-      <div class="row" style="margin-top:10px;">
-        <button id="ioApplyBtn" class="primary">Import anwenden</button>
-        <button id="ioCloseBtn" class="ghost">Schließen</button>
-      </div>
-      <div class="small" style="margin-top:8px;">Tipp: Export kopieren → als Backup irgendwo ablegen.</div>
-    </div>
+    <input id="importFile" type="file" accept="application/json" style="display:none;" />
   </section>
 </main>
 
@@ -150,10 +143,7 @@
   const exportBtn = $("exportBtn");
   const importBtn = $("importBtn");
   const wipeBtn = $("wipeBtn");
-  const ioBox = $("ioBox");
-  const ioText = $("ioText");
-  const ioApplyBtn = $("ioApplyBtn");
-  const ioCloseBtn = $("ioCloseBtn");
+  const importFile = $("importFile");
 
   const pad = (n) => String(n).padStart(2, "0");
   const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -540,41 +530,90 @@
     saveJSON(K_CFG, cfg);
   });
 
-  exportBtn.addEventListener("click", () => {
-    const payload = { templates, days, cfg };
-    ioText.value = JSON.stringify(payload, null, 2);
-    ioBox.style.display = "block";
+  const applyImportPayload = (obj) => {
+    if (!obj || typeof obj !== "object") throw new Error("Ungültig");
+    templates = Array.isArray(obj.templates) ? obj.templates : templates;
+    days = (obj.days && typeof obj.days === "object") ? obj.days : days;
+    cfg = (obj.cfg && typeof obj.cfg === "object") ? obj.cfg : cfg;
+    saveJSON(K_TPL, templates);
+    saveJSON(K_DAYS, days);
+    saveJSON(K_CFG, cfg);
+    soundToggle.checked = !!cfg.sound;
+    ensureToday(false);
+    renderTemplates();
+    renderToday();
+    renderHistory();
+    showMsg(tplMsg, "Import übernommen.", "ok");
+  };
+
+  const exportPayload = () => JSON.stringify({ templates, days, cfg }, null, 2);
+
+  exportBtn.addEventListener("click", async () => {
+    const json = exportPayload();
+    const filename = `blocktimer-export-${dateKey()}.json`;
+
+    if (window.showSaveFilePicker) {
+      try {
+        const handle = await window.showSaveFilePicker({
+          suggestedName: filename,
+          types: [
+            { description: "JSON", accept: { "application/json": [".json"] } },
+          ],
+        });
+        const writable = await handle.createWritable();
+        await writable.write(json);
+        await writable.close();
+        showMsg(tplMsg, "Export gespeichert.", "ok");
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+      }
+    }
+
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   });
 
-  importBtn.addEventListener("click", () => {
-    ioText.value = "";
-    ioBox.style.display = "block";
-    ioText.placeholder = "Füge hier Deinen Export ein und klicke „Import anwenden“.";
+  importBtn.addEventListener("click", async () => {
+    if (window.showOpenFilePicker) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          multiple: false,
+          types: [
+            { description: "JSON", accept: { "application/json": [".json"] } },
+          ],
+        });
+        const file = await handle.getFile();
+        const raw = await file.text();
+        applyImportPayload(JSON.parse(raw));
+        return;
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        showMsg(tplMsg, "Import fehlgeschlagen: JSON ist ungültig oder unvollständig.");
+        return;
+      }
+    }
+
+    importFile.value = "";
+    importFile.click();
   });
 
-  ioApplyBtn.addEventListener("click", () => {
+  importFile.addEventListener("change", async () => {
+    const file = importFile.files?.[0];
+    if (!file) return;
     try {
-      const obj = JSON.parse(ioText.value);
-      if (!obj || typeof obj !== "object") throw new Error("Ungültig");
-      templates = Array.isArray(obj.templates) ? obj.templates : templates;
-      days = (obj.days && typeof obj.days === "object") ? obj.days : days;
-      cfg = (obj.cfg && typeof obj.cfg === "object") ? obj.cfg : cfg;
-      saveJSON(K_TPL, templates);
-      saveJSON(K_DAYS, days);
-      saveJSON(K_CFG, cfg);
-      soundToggle.checked = !!cfg.sound;
-      ensureToday(false);
-      renderTemplates();
-      renderToday();
-      renderHistory();
-      showMsg(tplMsg, "Import übernommen.", "ok");
+      const raw = await file.text();
+      applyImportPayload(JSON.parse(raw));
     } catch (e) {
       showMsg(tplMsg, "Import fehlgeschlagen: JSON ist ungültig oder unvollständig.");
     }
-  });
-
-  ioCloseBtn.addEventListener("click", () => {
-    ioBox.style.display = "none";
   });
 
   wipeBtn.addEventListener("click", () => {
