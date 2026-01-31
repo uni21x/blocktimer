@@ -344,9 +344,8 @@
           ${t.status === "done" && t.completedAt ? `<div>Fertig: ${new Date(t.completedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}</div>` : ""}
         </div>
         <div class="actions">
-          <button class="primary" data-act="start" ${t.status !== "todo" ? "disabled" : ""}>Start (Timer)</button>
           <button class="ghost" data-act="pause" ${t.status !== "running" ? "disabled" : ""}>⏸</button>
-          <button class="ghost" data-act="resume" ${t.status !== "paused" ? "disabled" : ""}>▶</button>
+          <button class="primary" data-act="play" ${t.status === "running" ? "disabled" : ""}>▶</button>
           <button class="ghost" data-act="done" ${t.status === "done" ? "disabled" : ""}>Erledigt (ohne Timer)</button>
           <button class="ghost" data-act="undo" ${t.status === "todo" ? "disabled" : ""}>Zurücksetzen</button>
         </div>
@@ -360,19 +359,28 @@
         const idx = tasksNow.findIndex(x => x.id === t.id);
         if (idx < 0) return;
 
-        if (act === "start") {
+        if (act === "play") {
           if (anyRunning()) {
             showMsg(runMsg, "Es läuft bereits ein Block. Beende/erledige den zuerst.");
             return;
           }
-          // user gesture => AudioContext kann initialisiert werden
-          beep(); // kurzer Klick-Sound, damit AudioContext "freigeschaltet" ist
           const tt = tasksNow[idx];
-          tt.status = "running";
-          tt.startedAt = Date.now();
-          tt.endsAt = Date.now() + tt.minutes * 60_000;
-          tt.completedAt = null;
-          tt.remainingMs = null;
+          if (tt.status === "todo") {
+            // user gesture => AudioContext kann initialisiert werden
+            beep(); // kurzer Klick-Sound, damit AudioContext "freigeschaltet" ist
+            tt.status = "running";
+            tt.startedAt = Date.now();
+            tt.endsAt = Date.now() + tt.minutes * 60_000;
+            tt.completedAt = null;
+            tt.remainingMs = null;
+          } else if (tt.status === "paused") {
+            const remaining = Math.max(0, Number(tt.remainingMs || 0));
+            tt.status = "running";
+            tt.endsAt = Date.now() + remaining;
+            tt.remainingMs = null;
+          } else {
+            return;
+          }
           tasksNow[idx] = tt;
           setTodayTasks(tasksNow);
           renderToday();
@@ -385,23 +393,6 @@
           tt.status = "paused";
           tt.remainingMs = Math.max(0, tt.endsAt - Date.now());
           tt.endsAt = null;
-          tasksNow[idx] = tt;
-          setTodayTasks(tasksNow);
-          renderToday();
-          return;
-        }
-
-        if (act === "resume") {
-          if (anyRunning()) {
-            showMsg(runMsg, "Es läuft bereits ein Block. Beende/erledige den zuerst.");
-            return;
-          }
-          const tt = tasksNow[idx];
-          if (tt.status !== "paused") return;
-          const remaining = Math.max(0, Number(tt.remainingMs || 0));
-          tt.status = "running";
-          tt.endsAt = Date.now() + remaining;
-          tt.remainingMs = null;
           tasksNow[idx] = tt;
           setTodayTasks(tasksNow);
           renderToday();
@@ -596,8 +587,7 @@
         return;
       } catch (err) {
         if (err?.name === "AbortError") return;
-        showMsg(tplMsg, "Import fehlgeschlagen: JSON ist ungültig oder unvollständig.");
-        return;
+        showMsg(tplMsg, "Konnte den Datei-Dialog nicht öffnen. Bitte Datei manuell wählen.");
       }
     }
 
