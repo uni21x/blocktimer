@@ -24,11 +24,15 @@
     }
     input[type="number"] { width: 92px; }
     input[type="text"] { width: 220px; }
-    button { cursor: pointer; }
+    button { cursor: pointer; transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease; }
     button.primary { background: #1a2450; border-color: #36438a; }
     button.danger { background: #2a0f16; border-color: #6b1f33; }
     button.ghost { background: transparent; }
-    button:disabled { opacity: .45; cursor: not-allowed; }
+    button:hover:not(:disabled) { background: #141a2b; border-color: #3a4c7d; box-shadow: 0 6px 14px rgba(4, 8, 20, 0.35); }
+    button.primary:hover:not(:disabled) { background: #243062; border-color: #4c5cc1; }
+    button.danger:hover:not(:disabled) { background: #3a1420; border-color: #8a2a44; }
+    button.ghost:hover:not(:disabled) { background: rgba(88, 108, 160, 0.12); border-color: #2f3b63; }
+    button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 
     .list { display:flex; flex-direction:column; gap:10px; }
     .item { border: 1px solid #20263a; border-radius: 12px; padding: 10px; background: #0c0f17; }
