@@ -46,6 +46,17 @@
     .msg { font-size: 12px; opacity: .9; padding: 10px; border-radius: 10px; border: 1px solid #2a3455; background: #0c0f17; }
     .msg.warn { border-color:#6b5b1f; background:#15120b; }
     .msg.ok { border-color:#2d7a52; background:#0d1510; }
+    .toast-host {
+      position: fixed;
+      left: 16px;
+      bottom: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 999;
+      pointer-events: none;
+    }
+    .toast { min-width: 240px; max-width: 360px; }
     textarea { width: 100%; min-height: 120px; }
   </style>
 </head>
@@ -117,6 +128,7 @@
     <input id="importFile" type="file" accept="application/json" style="display:none;" />
   </section>
 </main>
+<div id="toastHost" class="toast-host" aria-live="polite"></div>
 
 <script>
 (() => {
@@ -132,6 +144,7 @@
   const historyList = $("historyList");
   const tplMsg = $("tplMsg");
   const runMsg = $("runMsg");
+  const toastHost = $("toastHost");
 
   const soundToggle = $("soundToggle");
   const tplName = $("tplName");
@@ -236,10 +249,13 @@
   };
 
   const showMsg = (el, text, kind="warn") => {
-    el.className = "msg " + (kind === "ok" ? "ok" : "warn");
-    el.textContent = text;
-    el.style.display = "block";
-    setTimeout(() => { el.style.display = "none"; }, 3500);
+    const toast = document.createElement("div");
+    toast.className = `msg toast ${kind === "ok" ? "ok" : "warn"}`;
+    toast.textContent = text;
+    toastHost.appendChild(toast);
+    setTimeout(() => {
+      toast.remove();
+    }, 3500);
   };
 
   const renderTemplates = () => {
