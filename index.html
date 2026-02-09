@@ -415,11 +415,13 @@
         <div class="subtitle" id="todayLabel">Lade...</div>
       </div>
       <div class="row" style="gap:24px">
-        <label class="col" style="align-items:center; gap:8px; cursor:pointer;" title="Benachrichtigungen aktivieren">
+        <button id="langToggle" class="ghost" style="padding:4px 8px; font-size:12px">DE / EN</button>
+        <label class="col" style="align-items:center; gap:8px; cursor:pointer;" id="lblNotify"
+          title="Benachrichtigungen aktivieren">
           <input type="checkbox" id="notifyToggle" style="width:16px; height:16px; cursor:pointer;" />
           <span style="font-size:18px;">🔔</span>
         </label>
-        <label class="col" style="align-items:center; gap:8px; cursor:pointer;" title="Sound an/aus">
+        <label class="col" style="align-items:center; gap:8px; cursor:pointer;" id="lblSound" title="Sound an/aus">
           <input type="checkbox" id="soundToggle" style="width:16px; height:16px; cursor:pointer;" />
           <span style="font-size:18px;">🔊</span>
         </label>
@@ -430,7 +432,7 @@
     <aside class="col">
       <section class="card">
         <div class="row spread" style="margin-bottom:12px;">
-          <h2>Templates</h2>
+          <h2 id="lblTemplates">Templates</h2>
           <button class="primary" id="openTplModalBtn" style="padding:4px 8px; font-size:12px;">+ Neu</button>
         </div>
 
@@ -440,14 +442,14 @@
 
         <div class="col">
           <button id="regenTodayBtn" class="danger" style="width:100%">Heute neu generieren</button>
-          <div class="subtitle" style="font-size:11px; text-align:center;">
+          <div class="subtitle" id="lblRegenWarn" style="font-size:11px; text-align:center;">
             Warnung: Überschreibt den heutigen Plan komplett.
           </div>
         </div>
       </section>
 
       <section class="card">
-        <h2>Datenverwaltung</h2>
+        <h2 id="lblData">Datenverwaltung</h2>
         <div class="row">
           <button id="exportBtn" class="ghost" style="flex:1">Export</button>
           <button id="importBtn" class="ghost" style="flex:1">Import</button>
@@ -461,7 +463,7 @@
     <main class="col">
       <section class="card">
         <div class="row spread">
-          <h2>Heute</h2>
+          <h2 id="lblToday">Heute</h2>
           <div class="subtitle" id="summaryLabel">0/0 erledigt</div>
         </div>
 
@@ -469,7 +471,7 @@
       </section>
 
       <section class="card">
-        <h2>Verlauf (Letzte 7 Tage)</h2>
+        <h2 id="lblHistory">Verlauf (Letzte 7 Tage)</h2>
         <div id="historyList" class="list"></div>
       </section>
     </main>
@@ -480,26 +482,27 @@
 
   <!-- Template Modal -->
   <dialog id="tplModal">
-    <h3>Template bearbeiten</h3>
+    <h3 id="lblTplModalTitle">Template bearbeiten</h3>
     <form id="tplForm" method="dialog" class="col">
       <input type="hidden" id="tplId" />
       <div>
-        <label>Name</label>
+        <label id="lblTplName">Name</label>
         <input id="tplName" type="text" placeholder="z. B. Deep Work" required />
       </div>
       <div class="row">
         <div style="flex:1">
-          <label>Dauer (Min)</label>
+          <label id="lblTplDuration">Dauer (Min)</label>
           <input id="tplMinutes" type="number" value="25" min="1" required />
         </div>
         <div style="flex:1">
-          <label>Wdh.</label>
+          <label id="lblTplReps">Wdh.</label>
           <input id="tplReps" type="number" value="1" min="1" max="10" required />
         </div>
       </div>
       <div class="actions">
-        <button type="button" class="ghost" onclick="document.getElementById('tplModal').close()">Abbrechen</button>
-        <button type="submit" class="primary">Speichern</button>
+        <button type="button" id="btnTplCancel" class="ghost"
+          onclick="document.getElementById('tplModal').close()">Abbrechen</button>
+        <button type="submit" id="btnTplSave" class="primary">Speichern</button>
       </div>
     </form>
   </dialog>
@@ -521,21 +524,147 @@
       const K_DAYS = "bt.days.v1";
       const K_CFG = "bt.cfg.v1";
 
+      // Translations
+      const translations = {
+        de: {
+          // Static
+          templates: "Templates",
+          new: "+ Neu",
+          regen: "Tagesplan generieren",
+          regenWarn: "Warnung: Überschreibt den heutigen Plan komplett.",
+          data: "Datenverwaltung",
+          export: "Export",
+          import: "Import",
+          wipe: "Alles zurücksetzen",
+          today: "Heute",
+          history: "Verlauf (Letzte 7 Tage)",
+          notifyTitle: "Benachrichtigungen aktivieren",
+          soundTitle: "Sound an/aus",
+
+          // Modals
+          tplModalTitle: "Template bearbeiten",
+          name: "Name",
+          placeholder: "z. B. Deep Work",
+          duration: "Dauer (Min)",
+          reps: "Wdh.",
+          cancel: "Abbrechen",
+          save: "Speichern",
+          confirmTitle: "Bestätigen",
+          confirmText: "Bist du sicher?",
+          confirmOk: "Bestätigen",
+
+          // Dynamic / JS
+          emptyTpl: "Keine Templates. Erstelle dein erstes!",
+          addSingle: "+ Einmalig zu heute hinzufügen",
+          delTplTitle: "Template löschen?",
+          delTplText: (name) => `Möchtest du "${name}" wirklich löschen?`,
+          tplDeleted: "Template gelöscht",
+          addedToToday: "Zu heute hinzugefügt",
+
+          emptyToday: "Heute steht nichts an. Generiere aus Templates oder füge einzelne hinzu.",
+          done: "erledigt",
+          running: "läuft",
+
+          badgeTodo: "Offen",
+          badgeRunning: "Läuft",
+          badgePaused: "Pause",
+          badgeDone: "Fertig",
+
+          btnMarkDone: "Als erledigt markieren",
+          btnReset: "Reset",
+          btnStart: "Start",
+          btnPause: "Pause",
+
+          onlyOne: "Nur ein Timer gleichzeitig!",
+          blockFinished: "Block beendet!",
+          blockFinishedBody: (name) => `"${name}" ist fertig.`,
+
+          wipeTitle: "Alles löschen?",
+          wipeText: "Wirklich ALLES löschen?",
+          exportStarted: "Export gestartet",
+          importError: "Import fehlerhaft",
+          emptyHistory: "Noch kein Verlauf.",
+        },
+        en: {
+          templates: "Templates",
+          new: "+ New",
+          regen: "Generate Daily Plan",
+          regenWarn: "Warning: Overwrites today's plan completely.",
+          data: "Data Management",
+          export: "Export",
+          import: "Import",
+          wipe: "Reset Everything",
+          today: "Today",
+          history: "History (Last 7 Days)",
+          notifyTitle: "Enable Notifications",
+          soundTitle: "Toggle Sound",
+
+          tplModalTitle: "Edit Template",
+          name: "Name",
+          placeholder: "e.g. Deep Work",
+          duration: "Duration (Min)",
+          reps: "Reps",
+          cancel: "Cancel",
+          save: "Save",
+          confirmTitle: "Confirm",
+          confirmText: "Are you sure?",
+          confirmOk: "Confirm",
+
+          emptyTpl: "No templates. Create your first!",
+          addSingle: "+ Add single block to today",
+          delTplTitle: "Delete Template?",
+          delTplText: (name) => `Really delete "${name}"?`,
+          tplDeleted: "Template deleted",
+          addedToToday: "Added to today",
+
+          emptyToday: "Nothing planned. Generate from templates or add single blocks.",
+          done: "done",
+          running: "running",
+
+          badgeTodo: "Todo",
+          badgeRunning: "Running",
+          badgePaused: "Paused",
+          badgeDone: "Done",
+
+          btnMarkDone: "Mark as done",
+          btnReset: "Reset",
+          btnStart: "Start",
+          btnPause: "Pause",
+
+          onlyOne: "Only one timer at a time!",
+          blockFinished: "Block finished!",
+          blockFinishedBody: (name) => `"${name}" is done.`,
+
+          wipeTitle: "Delete everything?",
+          wipeText: "Really delete EVERYTHING?",
+          exportStarted: "Export started",
+          importError: "Import failed",
+          emptyHistory: "No history yet.",
+        }
+      };
+
       // Elements
       const $ = (id) => document.getElementById(id);
 
       // State
       let templates = [];
       let days = {};
-      let cfg = { sound: true, notifications: false };
+      let cfg = { sound: true, notifications: false, lang: "de" }; // Default lang
       let audioCtx = null;
+
+      // --- Helpers ---
+      const t = (key, ...args) => {
+        const val = translations[cfg.lang][key];
+        if (typeof val === "function") return val(...args);
+        return val || key;
+      };
 
       // --- Helpers ---
       const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
       const pad = (n) => String(n).padStart(2, "0");
       const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 
-      const formatDate = (d) => new Date(d).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+      const formatDate = (d) => new Date(d).toLocaleDateString(cfg.lang === "de" ? "de-DE" : "en-US", { weekday: "short", day: "numeric", month: "long" });
       const formatTime = (ms) => {
         if (!ms || ms < 0) return "00:00";
         const s = Math.floor(ms / 1000);
@@ -651,53 +780,88 @@
       };
 
       // --- Render ---
+      const renderLanguage = () => {
+        // Toggle Button
+        $("langToggle").textContent = cfg.lang.toUpperCase();
+
+        // Static Text
+        $("lblTemplates").textContent = t("templates");
+        $("openTplModalBtn").textContent = t("new");
+        $("regenTodayBtn").textContent = t("regen");
+        $("lblRegenWarn").textContent = t("regenWarn");
+        $("lblData").textContent = t("data");
+        $("exportBtn").textContent = t("export");
+        $("importBtn").textContent = t("import");
+        $("wipeBtn").textContent = t("wipe");
+        $("lblToday").textContent = t("today");
+        $("lblHistory").textContent = t("history");
+
+        // Header Toggles
+        $("lblNotify").title = t("notifyTitle");
+        $("lblSound").title = t("soundTitle");
+
+        // Modals
+        $("lblTplModalTitle").textContent = t("tplModalTitle");
+        $("lblTplName").textContent = t("name");
+        $("tplName").placeholder = t("placeholder");
+        $("lblTplDuration").textContent = t("duration");
+        $("lblTplReps").textContent = t("reps");
+        $("btnTplCancel").textContent = t("cancel");
+        $("btnTplSave").textContent = t("save");
+
+        $("confirmTitle").textContent = t("confirmTitle");
+        $("confirmText").textContent = t("confirmText");
+        $("confirmOk").textContent = t("confirmOk");
+        $("confirmCancel").textContent = t("cancel");
+      };
+
       const renderTemplates = () => {
         const list = $("tplList");
         list.innerHTML = "";
-        if (!templates.length) return list.innerHTML = `<div class="empty-state">Keine Templates. Erstelle dein erstes!</div>`;
+        if (!templates.length) return list.innerHTML = `<div class="empty-state">${t("emptyTpl")}</div>`;
 
-        templates.forEach(t => {
+        templates.forEach(tobj => {
           const el = document.createElement("div");
           el.className = "item";
           el.innerHTML = `
         <div class="item-header">
-          <div class="item-title">${t.name}</div>
+          <div class="item-title">${tobj.name}</div>
           <div class="row" style="gap:4px">
             <button class="icon-btn edit-btn">✏️</button>
             <button class="icon-btn del-btn" style="color:var(--danger)">🗑️</button>
           </div>
         </div>
         <div class="item-meta">
-          <span>⏱ ${t.minutes} Min</span>
-          <span>↻ ${t.reps}x</span>
+          <span>⏱ ${tobj.minutes} Min</span>
+          <span>↻ ${tobj.reps}x</span>
         </div>
         <div style="margin-top:12px">
-            <button class="ghost add-single-btn" style="font-size:11px; width:100%">+ Einmalig zu heute hinzufügen</button>
+            <button class="ghost add-single-btn" style="font-size:11px; width:100%">${t("addSingle")}</button>
         </div>
       `;
 
           // Events
           el.querySelector(".del-btn").onclick = () => {
-            confirmDialog("Template löschen?", `Möchtest du "${t.name}" wirklich löschen?`, () => {
-              templates = templates.filter(x => x.id !== t.id);
+            confirmDialog(t("delTplTitle"), t("delTplText", tobj.name), () => {
+              templates = templates.filter(x => x.id !== tobj.id);
               save();
               renderTemplates();
-              toast("Template gelöscht");
+              toast(t("tplDeleted"));
             });
           };
-          el.querySelector(".edit-btn").onclick = () => openTplModal(t);
+          el.querySelector(".edit-btn").onclick = () => openTplModal(tobj);
           el.querySelector(".add-single-btn").onclick = () => {
             const tasks = getToday();
             tasks.push({
               id: uid(),
-              name: t.name,
-              minutes: Number(t.minutes),
+              name: tobj.name,
+              minutes: Number(tobj.minutes),
               status: "todo",
-              startedAt: null, endsAt: null, remainingMs: null, completedAt: null, duration: Number(t.minutes) * 60000
+              startedAt: null, endsAt: null, remainingMs: null, completedAt: null, duration: Number(tobj.minutes) * 60000
             });
             setToday(tasks);
             renderToday();
-            toast("Zu heute hinzugefügt");
+            toast(t("addedToToday"));
           };
 
           list.appendChild(el);
@@ -711,88 +875,86 @@
         // Update Header Summary
         const doneCount = tasks.filter(t => t.status === "done").length;
         const runningCount = tasks.filter(t => t.status === "running").length;
-        $("summaryLabel").textContent = `${doneCount}/${tasks.length} erledigt` + (runningCount ? ` • ${runningCount} läuft` : "");
+        $("summaryLabel").textContent = `${doneCount}/${tasks.length} ${t("done")}` + (runningCount ? ` • ${runningCount} ${t("running")}` : "");
 
         // Render List
         list.innerHTML = "";
-        if (!tasks.length) return list.innerHTML = `<div class="empty-state">Heute steht nichts an. Generiere aus Templates oder füge einzelne hinzu.</div>`;
+        if (!tasks.length) return list.innerHTML = `<div class="empty-state">${t("emptyToday")}</div>`;
 
-        tasks.forEach(t => {
+        tasks.forEach(tobj => {
           const el = document.createElement("div");
-          el.className = `item ${t.status}`;
+          el.className = `item ${tobj.status}`;
 
-          let badge = "todo", badgeText = "Offen", timeLeft = "", progress = 0;
+          let badge = "todo", badgeText = t("badgeTodo"), timeLeft = "", progress = 0;
 
-          if (t.status === "running") {
-            badge = "running"; badgeText = "Läuft";
-            const left = Math.max(0, t.endsAt - Date.now());
+          if (tobj.status === "running") {
+            badge = "running"; badgeText = t("badgeRunning");
+            const left = Math.max(0, tobj.endsAt - Date.now());
             timeLeft = formatTime(left);
-            progress = 100 - (left / t.duration * 100);
-          } else if (t.status === "paused") {
-            badge = "paused"; badgeText = "Pause";
-            timeLeft = formatTime(t.remainingMs);
-            progress = 100 - (t.remainingMs / t.duration * 100);
-          } else if (t.status === "done") {
-            badge = "done"; badgeText = "Fertig";
+            progress = 100 - (left / tobj.duration * 100);
+          } else if (tobj.status === "paused") {
+            badge = "paused"; badgeText = t("badgePaused");
+            timeLeft = formatTime(tobj.remainingMs);
+            progress = 100 - (tobj.remainingMs / tobj.duration * 100);
+          } else if (tobj.status === "done") {
+            badge = "done"; badgeText = t("badgeDone");
             progress = 100;
-            timeLeft = new Date(t.completedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+            timeLeft = new Date(tobj.completedAt).toLocaleTimeString(cfg.lang === "de" ? "de-DE" : "en-US", { hour: "2-digit", minute: "2-digit" });
           } else {
-            timeLeft = t.minutes + " Min";
+            timeLeft = tobj.minutes + " Min";
           }
 
           el.innerHTML = `
-        <div class="progress-bar" id="bar-${t.id}" style="width:${progress}%"></div>
+        <div class="progress-bar" id="bar-${tobj.id}" style="width:${progress}%"></div>
         <div class="item-header">
-          <div class="item-title">${t.name}</div>
+          <div class="item-title">${tobj.name}</div>
           <span class="badge ${badge}">${badgeText}</span>
         </div>
         <div class="item-meta spread">
-          <span class="time-large" id="time-${t.id}">${timeLeft}</span>
+          <span class="time-large" id="time-${tobj.id}">${timeLeft}</span>
           <div class="row" style="gap:8px">
-             ${t.status === "running" ? `<button class="primary pause-btn" title="Pause">⏸</button>` : ""}
-             ${(t.status === "paused" || t.status === "todo") ? `<button class="primary play-btn" title="Start">▶</button>` : ""}
-             ${t.status !== "done" ? `<button class="ghost done-btn" title="Als erledigt markieren">✓</button>` : ""}
-             <button class="ghost undo-btn" title="Reset" ${t.status === "todo" ? "disabled" : ""}>↺</button>
+             ${tobj.status === "running" ? `<button class="primary pause-btn" title="${t("btnPause")}">⏸</button>` : ""}
+             ${(tobj.status === "paused" || tobj.status === "todo") ? `<button class="primary play-btn" title="${t("btnStart")}">▶</button>` : ""}
+             ${tobj.status !== "done" ? `<button class="ghost done-btn" title="${t("btnMarkDone")}">✓</button>` : ""}
+             <button class="ghost undo-btn" title="${t("btnReset")}" ${tobj.status === "todo" ? "disabled" : ""}>↺</button>
           </div>
         </div>
       `;
 
           // Actions
-          if (t.status === "running") el.querySelector(".pause-btn").onclick = () => {
-            t.status = "paused";
-            t.remainingMs = t.endsAt - Date.now();
-            t.endsAt = null;
-            updateTask(t);
+          if (tobj.status === "running") el.querySelector(".pause-btn").onclick = () => {
+            tobj.status = "paused";
+            tobj.remainingMs = tobj.endsAt - Date.now();
+            tobj.endsAt = null;
+            updateTask(tobj);
           };
-          if (t.status === "paused" || t.status === "todo") el.querySelector(".play-btn").onclick = () => {
-            if (getToday().some(x => x.status === "running")) return toast("Nur ein Timer gleichzeitig!");
+          if (tobj.status === "paused" || tobj.status === "todo") el.querySelector(".play-btn").onclick = () => {
+            if (getToday().some(x => x.status === "running")) return toast(t("onlyOne"));
 
-            // requestNotify() removed
+            const isResuming = tobj.status === "paused" && tobj.remainingMs > 0;
+            const ms = isResuming ? tobj.remainingMs : (tobj.minutes * 60000);
 
-            const isResuming = t.status === "paused" && t.remainingMs > 0;
-            const ms = isResuming ? t.remainingMs : (t.minutes * 60000);
-
-            t.status = "running";
-            t.duration = t.duration || ms; // ensure duration is set
-            t.endsAt = Date.now() + ms;
-            t.startedAt = t.startedAt || Date.now();
-            t.remainingMs = null;
-            updateTask(t);
+            tobj.status = "running";
+            tobj.duration = tobj.duration || ms; // ensure duration is set
+            tobj.endsAt = Date.now() + ms;
+            tobj.startedAt = tobj.startedAt || Date.now();
+            tobj.remainingMs = null;
+            updateTask(tobj);
             beep();
           };
-          if (t.status !== "done") el.querySelector(".done-btn").onclick = () => {
-            t.status = "done";
-            t.completedAt = Date.now();
-            t.endsAt = null;
-            updateTask(t);
+          if (tobj.status !== "done") el.querySelector(".done-btn").onclick = () => {
+            tobj.status = "done";
+            tobj.completedAt = Date.now();
+            tobj.endsAt = null;
+            updateTask(tobj);
           };
           if (true) el.querySelector(".undo-btn").onclick = () => {
-            if (t.status === "todo") return;
-            t.status = "todo";
-            t.endsAt = null;
-            t.remainingMs = null;
-            t.completedAt = null;
-            updateTask(t);
+            if (tobj.status === "todo") return;
+            tobj.status = "todo";
+            tobj.endsAt = null;
+            tobj.remainingMs = null;
+            tobj.completedAt = null;
+            updateTask(tobj);
           };
 
           list.appendChild(el);
@@ -816,7 +978,7 @@
         // Exclude today
         const pastKeys = keys.filter(k => k !== dateKey()).slice(0, 7);
 
-        if (!pastKeys.length) return list.innerHTML = `<div class="empty-state">Noch kein Verlauf.</div>`;
+        if (!pastKeys.length) return list.innerHTML = `<div class="empty-state">${t("emptyHistory")}</div>`;
 
         pastKeys.forEach(k => {
           const day = days[k];
@@ -864,16 +1026,16 @@
         }
         save();
         renderTemplates();
-        toast("Template gespeichert");
+        toast(t("save"));
       };
 
       $("openTplModalBtn").onclick = () => openTplModal();
 
       $("regenTodayBtn").onclick = () => {
-        confirmDialog("Heute neu generieren?", "Alle heutigen Fortschritte gehen verloren.", () => {
+        confirmDialog(t("regen"), t("regenWarn"), () => {
           ensureToday(true);
           renderToday();
-          toast("Plan neu generiert");
+          toast(t("regen"));
         });
       };
 
@@ -888,8 +1050,14 @@
         if (cfg.notifications) requestNotify();
       };
 
+      $("langToggle").onclick = () => {
+        cfg.lang = cfg.lang === "de" ? "en" : "de";
+        save();
+        location.reload();
+      };
+
       // --- Import/Export ---
-      $("wipeBtn").onclick = () => confirmDialog("Alles löschen?", "Wirklich ALLES löschen?", () => {
+      $("wipeBtn").onclick = () => confirmDialog(t("wipeTitle"), t("wipeText"), () => {
         localStorage.clear();
         location.reload();
       });
@@ -902,7 +1070,7 @@
         a.href = url;
         a.download = `blocktimer-${dateKey()}.json`;
         a.click();
-        toast("Export gestartet");
+        toast(t("exportStarted"));
       };
 
       $("importBtn").onclick = () => $("importFile").click();
@@ -918,7 +1086,7 @@
           save();
           location.reload();
         } catch (err) {
-          alert("Import fehlerhaft");
+          toast(t("importError"));
         }
       };
 
@@ -936,7 +1104,7 @@
             running.completedAt = now;
             running.endsAt = null;
             changed = true;
-            notify("Block beendet!", running.name);
+            notify(t("blockFinished"), t("blockFinishedBody", running.name));
           } else {
             // Update Title
             const m = Math.ceil((running.endsAt - now) / 60000);
@@ -957,6 +1125,8 @@
       // --- Init ---
       load();
       ensureToday();
+
+      renderLanguage(); // Initial render of static text
 
       $("soundToggle").checked = !!cfg.sound;
       $("notifyToggle").checked = !!cfg.notifications;
