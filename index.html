@@ -1,638 +1,993 @@
 <!doctype html>
 <html lang="de">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Block-Timer (lokal)</title>
+  <meta name="theme-color" content="#0b0c10">
+  <title>Blocktimer</title>
   <style>
-    :root { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; }
-    body { margin: 0; background: #0b0c10; color: #eaf0ff; }
-    header { padding: 16px 18px; border-bottom: 1px solid #20263a; display:flex; gap:12px; align-items:baseline; flex-wrap:wrap;}
-    header h1 { margin: 0; font-size: 18px; }
-    header .sub { opacity: .8; font-size: 13px; }
-    main { padding: 18px; display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
-    @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+    :root {
+      /* Palette (User 1:1) */
+      --bg: #0b0c10;
+      --surface: #10131c;
+      --surface-hover: #1c2230;
+      /* Slightly lighter than surface */
+      --border: #20263a;
+      --text: #eaf0ff;
+      --text-muted: #8892b0;
+      /* Derived matching muted tone */
+      --primary: #1a2450;
+      --primary-hover: #263368;
+      --danger: #2a0f16;
+      --danger-hover: #451522;
+      --success: #0f2a1c;
+      --warning: #2a1f0f;
 
-    .card { background: #10131c; border: 1px solid #20263a; border-radius: 14px; padding: 14px; }
-    .card h2 { margin: 0 0 10px; font-size: 14px; opacity: .9; }
-    .row { display:flex; gap: 10px; flex-wrap:wrap; align-items:center; }
-    .row > * { flex: 0 0 auto; }
-    label { font-size: 12px; opacity: .85; display:block; margin-bottom: 4px; }
-    input, button, select, textarea {
-      border-radius: 10px; border: 1px solid #2a3455; background: #0c0f17; color: #eaf0ff;
-      padding: 9px 10px; font-size: 13px;
+      /* Spacing & Radius */
+      --radius: 12px;
+      --gap: 16px;
+
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
     }
-    input[type="number"] { width: 92px; }
-    input[type="text"] { width: 220px; }
-    button { cursor: pointer; }
-    button.primary { background: #1a2450; border-color: #36438a; }
-    button.danger { background: #2a0f16; border-color: #6b1f33; }
-    button.ghost { background: transparent; }
-    button:disabled { opacity: .45; cursor: not-allowed; }
 
-    .list { display:flex; flex-direction:column; gap:10px; }
-    .item { border: 1px solid #20263a; border-radius: 12px; padding: 10px; background: #0c0f17; }
-    .item .top { display:flex; justify-content:space-between; gap:10px; align-items:center; }
-    .badge { font-size: 11px; padding: 3px 8px; border-radius: 999px; border: 1px solid #2a3455; opacity: .9; }
-    .badge.todo { background: #0f1426; }
-    .badge.running { background: #1a2450; border-color:#36438a; }
-    .badge.done { background: #0f2a1c; border-color:#2d7a52; }
-    .badge.paused { background: #2a1f0f; border-color:#7a5a2d; }
-    .meta { font-size: 12px; opacity: .82; margin-top: 6px; display:flex; gap:10px; flex-wrap:wrap; }
-    .actions { margin-top: 8px; display:flex; gap: 8px; flex-wrap:wrap; }
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+    }
 
-    .hr { height:1px; background:#20263a; margin: 12px 0; }
-    .small { font-size: 12px; opacity: .8; }
-    .msg { font-size: 12px; opacity: .9; padding: 10px; border-radius: 10px; border: 1px solid #2a3455; background: #0c0f17; }
-    .msg.warn { border-color:#6b5b1f; background:#15120b; }
-    .msg.ok { border-color:#2d7a52; background:#0d1510; }
-    textarea { width: 100%; min-height: 120px; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+      font-size: 14px;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .container {
+      max-width: 1400px;
+      /* Wider for desktop */
+      margin: 0 auto;
+      padding: 40px;
+      /* More padding */
+      display: grid;
+      grid-template-columns: 400px 1fr;
+      /* Wider sidebar */
+      gap: 32px;
+      align-items: start;
+    }
+
+    header {
+      padding: 0 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      grid-column: 1 / -1;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 8px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      font-weight: 600;
+      letter-spacing: -0.5px;
+    }
+
+    h2 {
+      margin: 0 0 16px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .subtitle {
+      color: var(--text-muted);
+      font-size: 13px;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    /* Forms & Inputs */
+    label {
+      display: block;
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+    }
+
+    input,
+    select,
+    textarea {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Buttons */
+    button {
+      cursor: pointer;
+      border: 1px solid var(--border);
+      /* Added border */
+      background: var(--surface-hover);
+      color: var(--text);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    button:hover {
+      background: var(--border);
+      border-color: var(--text-muted);
+    }
+
+    button:active {
+      transform: translateY(1px);
+    }
+
+    button.primary {
+      background: var(--primary);
+      color: white;
+      border-color: var(--primary-hover);
+    }
+
+    button.primary:hover {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: #fafafa;
+      border: 1px solid var(--danger-hover);
+    }
+
+    button.danger:hover {
+      background: var(--danger-hover);
+      color: white;
+    }
+
+    button.ghost {
+      background: transparent;
+      color: var(--text-muted);
+      border-color: var(--border);
+    }
+
+    button.ghost:hover {
+      color: var(--text);
+      background: var(--surface-hover);
+      border-color: var(--text-muted);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
+    .row {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .spread {
+      justify-content: space-between;
+    }
+
+    .col {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    /* Lists */
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .item {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .item:hover {
+      border-color: var(--surface-hover);
+    }
+
+    .item.running {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 1px var(--primary-hover);
+      background: linear-gradient(to right, rgba(26, 36, 80, 0.4), var(--surface));
+    }
+
+    .item.running .item-title {
+      color: white;
+    }
+
+    .item.done {
+      opacity: 0.5;
+      border-color: var(--success);
+      background: rgba(15, 42, 28, 0.2);
+    }
+
+    .item.done .item-title {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+
+    .item-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      margin-bottom: 8px;
+      position: relative;
+      z-index: 2;
+    }
+
+    .item-title {
+      font-weight: 600;
+      font-size: 15px;
+    }
+
+    .item-meta {
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+
+    /* Badges */
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 99px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .badge.todo {
+      background: var(--surface-hover);
+      color: var(--text-muted);
+    }
+
+    .badge.running {
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+    }
+
+    .badge.paused {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+    }
+
+    .badge.done {
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+    }
+
+    /* Progress & Timer */
+    .progress-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      background: var(--primary);
+      width: 0%;
+      transition: width 1s linear;
+      z-index: 1;
+    }
+
+    .time-large {
+      font-family: monospace;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    /* Utilities */
+    .hr {
+      height: 1px;
+      background: var(--border);
+      margin: 20px 0;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 30px;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-style: italic;
+    }
+
+    /* Toast / Messages */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+      transform: translateY(100px);
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      opacity: 0;
+    }
+
+    #toast.visible {
+      transform: translateY(0);
+      opacity: 1;
+    }
+
+    /* Dialog/Modal */
+    dialog {
+      background: var(--surface);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      max-width: 400px;
+      width: 90%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+    }
+
+    dialog::backdrop {
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(2px);
+    }
+
+    dialog h3 {
+      margin-top: 0;
+      font-size: 18px;
+    }
+
+    dialog .actions {
+      margin-top: 24px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    /* Actions icons */
+    .icon-btn {
+      padding: 6px;
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-muted);
+    }
+
+    .icon-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: var(--text);
+    }
   </style>
 </head>
+
 <body>
-<header>
-  <h1>Block-Timer (lokal)</h1>
-  <div class="sub" id="todayLabel"></div>
-  <div class="sub" id="summaryLabel"></div>
-</header>
 
-<main>
-  <section class="card">
-    <h2>Templates (täglich wiederkehrend)</h2>
-
-    <div class="row" style="align-items:flex-end; gap: 12px;">
+  <div class="container">
+    <header>
       <div>
-        <label>Block-Name</label>
-        <input id="tplName" type="text" placeholder="z. B. Fokusblock" />
+        <h1>Blocktimer</h1>
+        <div class="subtitle" id="todayLabel">Lade...</div>
       </div>
-      <div>
-        <label>Minuten</label>
-        <input id="tplMinutes" type="number" min="1" step="1" value="75" />
+      <div class="row" style="gap:24px">
+        <label class="col" style="align-items:center; gap:8px; cursor:pointer;" title="Benachrichtigungen aktivieren">
+          <input type="checkbox" id="notifyToggle" style="width:16px; height:16px; cursor:pointer;" />
+          <span style="font-size:18px;">🔔</span>
+        </label>
+        <label class="col" style="align-items:center; gap:8px; cursor:pointer;" title="Sound an/aus">
+          <input type="checkbox" id="soundToggle" style="width:16px; height:16px; cursor:pointer;" />
+          <span style="font-size:18px;">🔊</span>
+        </label>
       </div>
-      <div>
-        <label>Wiederholungen</label>
-        <input id="tplReps" type="number" min="1" max="10" step="1" value="1" />
-      </div>
-      <button class="primary" id="addTplBtn">Block hinzufügen</button>
-    </div>
+    </header>
 
-    <div class="hr"></div>
-
-    <div class="list" id="tplList"></div>
-
-    <div class="hr"></div>
-
-    <div class="row">
-      <button id="regenTodayBtn" class="danger" title="Überschreibt die heutigen Blöcke anhand der Templates.">
-        Heute neu aus Templates erzeugen (überschreibt)
-      </button>
-      <label class="row small" style="gap:8px;">
-        <input type="checkbox" id="soundToggle" checked />
-        Ton bei Timer-Ende
-      </label>
-    </div>
-
-    <div id="tplMsg" class="msg warn" style="margin-top:10px; display:none;"></div>
-  </section>
-
-  <section class="card">
-    <h2>Heute</h2>
-    <div id="runMsg" class="msg warn" style="display:none; margin-bottom:10px;"></div>
-    <div class="list" id="todayList"></div>
-
-    <div class="hr"></div>
-
-    <h2>Verlauf</h2>
-    <div class="small">Zeigt die letzten 7 Tage (lokal gespeichert).</div>
-    <div class="list" id="historyList" style="margin-top:10px;"></div>
-
-    <div class="hr"></div>
-
-    <h2>Export / Import</h2>
-    <div class="row">
-      <button id="exportBtn" class="ghost">Export (JSON)</button>
-      <button id="importBtn" class="ghost">Import (JSON)</button>
-      <button id="wipeBtn" class="danger" title="Löscht alles lokal gespeicherte.">Alles löschen</button>
-    </div>
-    <input id="importFile" type="file" accept="application/json" style="display:none;" />
-  </section>
-</main>
-
-<script>
-(() => {
-  const K_TPL = "bt.templates.v1";
-  const K_DAYS = "bt.days.v1";
-  const K_CFG = "bt.cfg.v1";
-
-  const $ = (id) => document.getElementById(id);
-  const todayLabel = $("todayLabel");
-  const summaryLabel = $("summaryLabel");
-  const tplList = $("tplList");
-  const todayList = $("todayList");
-  const historyList = $("historyList");
-  const tplMsg = $("tplMsg");
-  const runMsg = $("runMsg");
-
-  const soundToggle = $("soundToggle");
-  const tplName = $("tplName");
-  const tplMinutes = $("tplMinutes");
-  const tplReps = $("tplReps");
-  const addTplBtn = $("addTplBtn");
-  const regenTodayBtn = $("regenTodayBtn");
-
-  const exportBtn = $("exportBtn");
-  const importBtn = $("importBtn");
-  const wipeBtn = $("wipeBtn");
-  const importFile = $("importFile");
-
-  const pad = (n) => String(n).padStart(2, "0");
-  const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-  const prettyDate = (d = new Date()) => d.toLocaleDateString("de-DE", { weekday:"long", year:"numeric", month:"long", day:"numeric" });
-
-  const uid = () => Math.random().toString(16).slice(2) + "-" + Date.now().toString(16);
-
-  const loadJSON = (key, fallback) => {
-    try {
-      const raw = localStorage.getItem(key);
-      return raw ? JSON.parse(raw) : fallback;
-    } catch { return fallback; }
-  };
-  const saveJSON = (key, value) => localStorage.setItem(key, JSON.stringify(value));
-
-  let templates = loadJSON(K_TPL, []);
-  let days = loadJSON(K_DAYS, {}); // { "YYYY-MM-DD": { tasks:[...], createdAt } }
-  let cfg = loadJSON(K_CFG, { sound: true });
-
-  soundToggle.checked = !!cfg.sound;
-
-  let audioCtx = null;
-  const beep = () => {
-    if (!cfg.sound) return;
-    try {
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
-      o.type = "sine";
-      o.frequency.value = 880;
-      g.gain.value = 0.04;
-      o.connect(g);
-      g.connect(audioCtx.destination);
-      o.start();
-      setTimeout(() => { o.stop(); }, 180);
-    } catch {
-      // wenn Audio blockiert ist, ignorieren
-    }
-  };
-
-  const ensureToday = (forceRegen = false) => {
-    const dk = dateKey();
-    if (!days[dk] || forceRegen) {
-      const tasks = [];
-      for (const t of templates) {
-        const reps = Math.max(1, Math.min(10, Number(t.reps || 1)));
-        for (let i = 1; i <= reps; i++) {
-          const suffix = reps > 1 ? ` (${i}/${reps})` : "";
-          tasks.push({
-            id: uid(),
-            name: (t.name || "Block") + suffix,
-            minutes: Number(t.minutes || 25),
-            status: "todo",
-            startedAt: null,
-            endsAt: null,
-            remainingMs: null,
-            completedAt: null,
-          });
-        }
-      }
-      days[dk] = { tasks, createdAt: Date.now() };
-      saveJSON(K_DAYS, days);
-    }
-  };
-
-  const getTodayTasks = () => {
-    const dk = dateKey();
-    return (days[dk]?.tasks) || [];
-  };
-
-  const setTodayTasks = (tasks) => {
-    const dk = dateKey();
-    if (!days[dk]) days[dk] = { tasks: [], createdAt: Date.now() };
-    days[dk].tasks = tasks;
-    saveJSON(K_DAYS, days);
-  };
-
-  const anyRunning = () => getTodayTasks().some(t => t.status === "running");
-
-  const fmtLeft = (ms) => {
-    const s = Math.max(0, Math.floor(ms / 1000));
-    const m = Math.floor(s / 60);
-    const r = s % 60;
-    if (m >= 60) {
-      const h = Math.floor(m / 60);
-      const mm = m % 60;
-      return `${h}:${pad(mm)}:${pad(r)}`;
-    }
-    return `${m}:${pad(r)}`;
-  };
-
-  const showMsg = (el, text, kind="warn") => {
-    el.className = "msg " + (kind === "ok" ? "ok" : "warn");
-    el.textContent = text;
-    el.style.display = "block";
-    setTimeout(() => { el.style.display = "none"; }, 3500);
-  };
-
-  const renderTemplates = () => {
-    tplList.innerHTML = "";
-    if (!templates.length) {
-      const div = document.createElement("div");
-      div.className = "small";
-      div.textContent = "Noch keine Templates. Lege Dir Blöcke an (z. B. Boot.dev 75 Min, Wiederholungen 2).";
-      tplList.appendChild(div);
-      return;
-    }
-    templates.forEach(t => {
-      const item = document.createElement("div");
-      item.className = "item";
-      item.innerHTML = `
-        <div class="top">
-          <div><strong>${escapeHTML(t.name)}</strong></div>
-          <span class="badge todo">${Number(t.minutes)} Min · ×${Number(t.reps||1)}</span>
+    <!-- Left Column: Templates -->
+    <aside class="col">
+      <section class="card">
+        <div class="row spread" style="margin-bottom:12px;">
+          <h2>Templates</h2>
+          <button class="primary" id="openTplModalBtn" style="padding:4px 8px; font-size:12px;">+ Neu</button>
         </div>
-        <div class="actions">
-          <button class="ghost" data-act="edit" data-id="${t.id}">Bearbeiten</button>
-          <button class="danger" data-act="del" data-id="${t.id}">Löschen</button>
-        </div>
-      `;
-      item.addEventListener("click", (e) => {
-        const btn = e.target.closest("button");
-        if (!btn) return;
-        const act = btn.dataset.act;
-        const id = btn.dataset.id;
-        const idx = templates.findIndex(x => x.id === id);
-        if (idx < 0) return;
-        if (act === "del") {
-          templates.splice(idx, 1);
-          saveJSON(K_TPL, templates);
-          renderTemplates();
-          showMsg(tplMsg, "Template gelöscht. (Heute bleibt unverändert, außer Du erzeugst neu.)", "ok");
-          return;
-        }
-        if (act === "edit") {
-          const cur = templates[idx];
-          const name = prompt("Name:", cur.name);
-          if (name === null) return;
-          const minutes = prompt("Minuten:", String(cur.minutes));
-          if (minutes === null) return;
-          const reps = prompt("Wiederholungen (1-10):", String(cur.reps || 1));
-          if (reps === null) return;
-          cur.name = (name || "").trim() || cur.name;
-          cur.minutes = Math.max(1, Math.floor(Number(minutes) || cur.minutes));
-          cur.reps = Math.max(1, Math.min(10, Math.floor(Number(reps) || (cur.reps||1))));
-          templates[idx] = cur;
-          saveJSON(K_TPL, templates);
-          renderTemplates();
-          showMsg(tplMsg, "Template gespeichert. (Heute bleibt unverändert, außer Du erzeugst neu.)", "ok");
-        }
-      });
-      tplList.appendChild(item);
-    });
-  };
 
-  const renderToday = () => {
-    const tasks = getTodayTasks();
-    todayList.innerHTML = "";
-    if (!tasks.length) {
-      const div = document.createElement("div");
-      div.className = "msg warn";
-      div.textContent = "Heute sind noch keine Blöcke erzeugt. Lege Templates an oder klicke „Heute neu aus Templates erzeugen“.";
-      todayList.appendChild(div);
-      summaryLabel.textContent = "";
-      return;
-    }
+        <div id="tplList" class="list"></div>
 
-    const done = tasks.filter(t => t.status === "done").length;
-    const running = tasks.filter(t => t.status === "running").length;
-    summaryLabel.textContent = `• Heute: ${done}/${tasks.length} erledigt` + (running ? ` • ${running} läuft` : "");
+        <div class="hr"></div>
 
-    tasks.forEach(t => {
-      const item = document.createElement("div");
-      item.className = "item";
-
-      const statusBadge =
-        t.status === "running" ? `<span class="badge running">läuft</span>` :
-        t.status === "paused" ? `<span class="badge paused">pausiert</span>` :
-        t.status === "done" ? `<span class="badge done">erledigt</span>` :
-        `<span class="badge todo">offen</span>`;
-
-      const now = Date.now();
-      const left =
-        (t.status === "running" && t.endsAt) ? Math.max(0, t.endsAt - now) :
-        (t.status === "paused" && t.remainingMs != null) ? Math.max(0, t.remainingMs) :
-        null;
-
-      item.innerHTML = `
-        <div class="top">
-          <div><strong>${escapeHTML(t.name)}</strong></div>
-          <div class="row" style="gap:8px;">
-            <span class="badge todo">${t.minutes} Min</span>
-            ${statusBadge}
+        <div class="col">
+          <button id="regenTodayBtn" class="danger" style="width:100%">Heute neu generieren</button>
+          <div class="subtitle" style="font-size:11px; text-align:center;">
+            Warnung: Überschreibt den heutigen Plan komplett.
           </div>
         </div>
-        <div class="meta">
-          ${(t.status === "running" || t.status === "paused") ? `<div>Rest: <strong>${fmtLeft(left)}</strong></div>` : ""}
-          ${t.status === "done" && t.completedAt ? `<div>Fertig: ${new Date(t.completedAt).toLocaleTimeString("de-DE",{hour:"2-digit",minute:"2-digit"})}</div>` : ""}
+      </section>
+
+      <section class="card">
+        <h2>Datenverwaltung</h2>
+        <div class="row">
+          <button id="exportBtn" class="ghost" style="flex:1">Export</button>
+          <button id="importBtn" class="ghost" style="flex:1">Import</button>
         </div>
-        <div class="actions">
-          <button class="ghost" data-act="pause" ${t.status !== "running" ? "disabled" : ""}>⏸</button>
-          <button class="primary" data-act="play" ${t.status === "running" ? "disabled" : ""}>▶</button>
-          <button class="ghost" data-act="done" ${t.status === "done" ? "disabled" : ""}>Erledigt (ohne Timer)</button>
-          <button class="ghost" data-act="undo" ${t.status === "todo" ? "disabled" : ""}>Zurücksetzen</button>
+        <button id="wipeBtn" class="danger ghost" style="width:100%; margin-top:8px;">Alles zurücksetzen</button>
+        <input id="importFile" type="file" accept=".json" style="display:none;" />
+      </section>
+    </aside>
+
+    <!-- Right Column: Today & History -->
+    <main class="col">
+      <section class="card">
+        <div class="row spread">
+          <h2>Heute</h2>
+          <div class="subtitle" id="summaryLabel">0/0 erledigt</div>
+        </div>
+
+        <div id="todayList" class="list"></div>
+      </section>
+
+      <section class="card">
+        <h2>Verlauf (Letzte 7 Tage)</h2>
+        <div id="historyList" class="list"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Toast -->
+  <div id="toast">Nachricht</div>
+
+  <!-- Template Modal -->
+  <dialog id="tplModal">
+    <h3>Template bearbeiten</h3>
+    <form id="tplForm" method="dialog" class="col">
+      <input type="hidden" id="tplId" />
+      <div>
+        <label>Name</label>
+        <input id="tplName" type="text" placeholder="z. B. Deep Work" required />
+      </div>
+      <div class="row">
+        <div style="flex:1">
+          <label>Dauer (Min)</label>
+          <input id="tplMinutes" type="number" value="25" min="1" required />
+        </div>
+        <div style="flex:1">
+          <label>Wdh.</label>
+          <input id="tplReps" type="number" value="1" min="1" max="10" required />
+        </div>
+      </div>
+      <div class="actions">
+        <button type="button" class="ghost" onclick="document.getElementById('tplModal').close()">Abbrechen</button>
+        <button type="submit" class="primary">Speichern</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Confirm Modal -->
+  <dialog id="confirmModal">
+    <h3 id="confirmTitle">Bestätigen</h3>
+    <p id="confirmText" style="color:var(--text-muted); margin-bottom:24px;">Bist du sicher?</p>
+    <div class="actions">
+      <button class="ghost" id="confirmCancel">Abbrechen</button>
+      <button class="danger" id="confirmOk">Bestätigen</button>
+    </div>
+  </dialog>
+
+  <script>
+    (() => {
+      // --- Constants & State ---
+      const K_TPL = "bt.templates.v1";
+      const K_DAYS = "bt.days.v1";
+      const K_CFG = "bt.cfg.v1";
+
+      // Elements
+      const $ = (id) => document.getElementById(id);
+
+      // State
+      let templates = [];
+      let days = {};
+      let cfg = { sound: true, notifications: false };
+      let audioCtx = null;
+
+      // --- Helpers ---
+      const uid = () => Math.random().toString(36).slice(2) + Date.now().toString(36);
+      const pad = (n) => String(n).padStart(2, "0");
+      const dateKey = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+      const formatDate = (d) => new Date(d).toLocaleDateString("de-DE", { weekday: "short", day: "numeric", month: "long" });
+      const formatTime = (ms) => {
+        if (!ms || ms < 0) return "00:00";
+        const s = Math.floor(ms / 1000);
+        const m = Math.floor(s / 60);
+        const sec = s % 60;
+        if (m >= 60) {
+          const h = Math.floor(m / 60);
+          return `${h}:${pad(m % 60)}:${pad(sec)}`;
+        }
+        return `${pad(m)}:${pad(sec)}`;
+      };
+
+      // --- Storage ---
+      const load = () => {
+        try {
+          templates = JSON.parse(localStorage.getItem(K_TPL)) || [];
+          days = JSON.parse(localStorage.getItem(K_DAYS)) || {};
+          cfg = { ...cfg, ...JSON.parse(localStorage.getItem(K_CFG) || "{}") };
+        } catch (e) { console.error("Load error", e); }
+      };
+      const save = () => {
+        localStorage.setItem(K_TPL, JSON.stringify(templates));
+        localStorage.setItem(K_DAYS, JSON.stringify(days));
+        localStorage.setItem(K_CFG, JSON.stringify(cfg));
+      };
+
+      // --- Toast & Modal ---
+      const toast = (msg, duration = 3000) => {
+        const t = $("toast");
+        t.textContent = msg;
+        t.classList.add("visible");
+        setTimeout(() => t.classList.remove("visible"), duration);
+      };
+
+      const confirmDialog = (title, text, onOk) => {
+        const d = $("confirmModal");
+        $("confirmTitle").textContent = title;
+        $("confirmText").textContent = text;
+
+        // Cleanup old listeners
+        const okBtn = $("confirmOk");
+        const cancelBtn = $("confirmCancel");
+        const newOk = okBtn.cloneNode(true);
+        const newCancel = cancelBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newOk, okBtn);
+        cancelBtn.parentNode.replaceChild(newCancel, cancelBtn);
+
+        newOk.onclick = () => { d.close(); onOk(); };
+        newCancel.onclick = () => d.close();
+
+        d.showModal();
+      };
+
+      // --- Audio & Notifications ---
+      const beep = () => {
+        if (!cfg.sound) return;
+        try {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          const o = audioCtx.createOscillator();
+          const g = audioCtx.createGain();
+          o.type = "sine";
+          o.frequency.value = 880;
+          g.gain.value = 0.05;
+          o.connect(g);
+          g.connect(audioCtx.destination);
+          o.start();
+          setTimeout(() => o.stop(), 200);
+        } catch (e) { }
+      };
+
+      const notify = (title, body) => {
+        if (cfg.notifications && Notification.permission === "granted") {
+          new Notification(title, { body, icon: "" }); // icon could be added
+        }
+        beep();
+      };
+
+      const requestNotify = async () => {
+        if (!("Notification" in window)) return;
+        if (Notification.permission === "default") {
+          await Notification.requestPermission();
+        }
+      };
+
+      // --- Logic ---
+      const ensureToday = (force = false) => {
+        const dk = dateKey();
+        if (!days[dk] || force) {
+          const tasks = [];
+          templates.forEach(t => {
+            const reps = Math.max(1, Math.min(10, Number(t.reps || 1)));
+            for (let i = 1; i <= reps; i++) {
+              tasks.push({
+                id: uid(),
+                name: t.name + (reps > 1 ? ` (${i}/${reps})` : ""),
+                minutes: Number(t.minutes),
+                status: "todo",
+                startedAt: null, endsAt: null, remainingMs: null, completedAt: null, duration: Number(t.minutes) * 60000
+              });
+            }
+          });
+          days[dk] = { tasks, createdAt: Date.now() };
+          save();
+        }
+      };
+
+      const getToday = () => days[dateKey()]?.tasks || [];
+      const setToday = (tasks) => {
+        const dk = dateKey();
+        if (!days[dk]) days[dk] = { createdAt: Date.now(), tasks: [] };
+        days[dk].tasks = tasks;
+        save();
+      };
+
+      // --- Render ---
+      const renderTemplates = () => {
+        const list = $("tplList");
+        list.innerHTML = "";
+        if (!templates.length) return list.innerHTML = `<div class="empty-state">Keine Templates. Erstelle dein erstes!</div>`;
+
+        templates.forEach(t => {
+          const el = document.createElement("div");
+          el.className = "item";
+          el.innerHTML = `
+        <div class="item-header">
+          <div class="item-title">${t.name}</div>
+          <div class="row" style="gap:4px">
+            <button class="icon-btn edit-btn">✏️</button>
+            <button class="icon-btn del-btn" style="color:var(--danger)">🗑️</button>
+          </div>
+        </div>
+        <div class="item-meta">
+          <span>⏱ ${t.minutes} Min</span>
+          <span>↻ ${t.reps}x</span>
+        </div>
+        <div style="margin-top:12px">
+            <button class="ghost add-single-btn" style="font-size:11px; width:100%">+ Einmalig zu heute hinzufügen</button>
         </div>
       `;
 
-      item.addEventListener("click", (e) => {
-        const btn = e.target.closest("button");
-        if (!btn) return;
-        const act = btn.dataset.act;
-        const tasksNow = getTodayTasks();
-        const idx = tasksNow.findIndex(x => x.id === t.id);
-        if (idx < 0) return;
+          // Events
+          el.querySelector(".del-btn").onclick = () => {
+            confirmDialog("Template löschen?", `Möchtest du "${t.name}" wirklich löschen?`, () => {
+              templates = templates.filter(x => x.id !== t.id);
+              save();
+              renderTemplates();
+              toast("Template gelöscht");
+            });
+          };
+          el.querySelector(".edit-btn").onclick = () => openTplModal(t);
+          el.querySelector(".add-single-btn").onclick = () => {
+            const tasks = getToday();
+            tasks.push({
+              id: uid(),
+              name: t.name,
+              minutes: Number(t.minutes),
+              status: "todo",
+              startedAt: null, endsAt: null, remainingMs: null, completedAt: null, duration: Number(t.minutes) * 60000
+            });
+            setToday(tasks);
+            renderToday();
+            toast("Zu heute hinzugefügt");
+          };
 
-        if (act === "play") {
-          if (anyRunning()) {
-            showMsg(runMsg, "Es läuft bereits ein Block. Beende/erledige den zuerst.");
-            return;
-          }
-          const tt = tasksNow[idx];
-          if (tt.status === "todo") {
-            // user gesture => AudioContext kann initialisiert werden
-            beep(); // kurzer Klick-Sound, damit AudioContext "freigeschaltet" ist
-            tt.status = "running";
-            tt.startedAt = Date.now();
-            tt.endsAt = Date.now() + tt.minutes * 60_000;
-            tt.completedAt = null;
-            tt.remainingMs = null;
-          } else if (tt.status === "paused") {
-            const remaining = Math.max(0, Number(tt.remainingMs || 0));
-            tt.status = "running";
-            tt.endsAt = Date.now() + remaining;
-            tt.remainingMs = null;
+          list.appendChild(el);
+        });
+      };
+
+      const renderToday = () => {
+        const tasks = getToday();
+        const list = $("todayList");
+
+        // Update Header Summary
+        const doneCount = tasks.filter(t => t.status === "done").length;
+        const runningCount = tasks.filter(t => t.status === "running").length;
+        $("summaryLabel").textContent = `${doneCount}/${tasks.length} erledigt` + (runningCount ? ` • ${runningCount} läuft` : "");
+
+        // Render List
+        list.innerHTML = "";
+        if (!tasks.length) return list.innerHTML = `<div class="empty-state">Heute steht nichts an. Generiere aus Templates oder füge einzelne hinzu.</div>`;
+
+        tasks.forEach(t => {
+          const el = document.createElement("div");
+          el.className = `item ${t.status}`;
+
+          let badge = "todo", badgeText = "Offen", timeLeft = "", progress = 0;
+
+          if (t.status === "running") {
+            badge = "running"; badgeText = "Läuft";
+            const left = Math.max(0, t.endsAt - Date.now());
+            timeLeft = formatTime(left);
+            progress = 100 - (left / t.duration * 100);
+          } else if (t.status === "paused") {
+            badge = "paused"; badgeText = "Pause";
+            timeLeft = formatTime(t.remainingMs);
+            progress = 100 - (t.remainingMs / t.duration * 100);
+          } else if (t.status === "done") {
+            badge = "done"; badgeText = "Fertig";
+            progress = 100;
+            timeLeft = new Date(t.completedAt).toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
           } else {
-            return;
+            timeLeft = t.minutes + " Min";
           }
-          tasksNow[idx] = tt;
-          setTodayTasks(tasksNow);
-          renderToday();
-          return;
-        }
 
-        if (act === "pause") {
-          const tt = tasksNow[idx];
-          if (tt.status !== "running" || !tt.endsAt) return;
-          tt.status = "paused";
-          tt.remainingMs = Math.max(0, tt.endsAt - Date.now());
-          tt.endsAt = null;
-          tasksNow[idx] = tt;
-          setTodayTasks(tasksNow);
-          renderToday();
-          return;
-        }
+          el.innerHTML = `
+        <div class="progress-bar" id="bar-${t.id}" style="width:${progress}%"></div>
+        <div class="item-header">
+          <div class="item-title">${t.name}</div>
+          <span class="badge ${badge}">${badgeText}</span>
+        </div>
+        <div class="item-meta spread">
+          <span class="time-large" id="time-${t.id}">${timeLeft}</span>
+          <div class="row" style="gap:8px">
+             ${t.status === "running" ? `<button class="primary pause-btn" title="Pause">⏸</button>` : ""}
+             ${(t.status === "paused" || t.status === "todo") ? `<button class="primary play-btn" title="Start">▶</button>` : ""}
+             ${t.status !== "done" ? `<button class="ghost done-btn" title="Als erledigt markieren">✓</button>` : ""}
+             <button class="ghost undo-btn" title="Reset" ${t.status === "todo" ? "disabled" : ""}>↺</button>
+          </div>
+        </div>
+      `;
 
-        if (act === "done") {
-          const tt = tasksNow[idx];
-          tt.status = "done";
-          tt.startedAt = tt.startedAt || null;
-          tt.endsAt = null;
-          tt.completedAt = Date.now();
-          tt.remainingMs = null;
-          tasksNow[idx] = tt;
-          setTodayTasks(tasksNow);
-          renderToday();
-          return;
-        }
+          // Actions
+          if (t.status === "running") el.querySelector(".pause-btn").onclick = () => {
+            t.status = "paused";
+            t.remainingMs = t.endsAt - Date.now();
+            t.endsAt = null;
+            updateTask(t);
+          };
+          if (t.status === "paused" || t.status === "todo") el.querySelector(".play-btn").onclick = () => {
+            if (getToday().some(x => x.status === "running")) return toast("Nur ein Timer gleichzeitig!");
 
-        if (act === "undo") {
-          const tt = tasksNow[idx];
-          tt.status = "todo";
-          tt.startedAt = null;
-          tt.endsAt = null;
-          tt.completedAt = null;
-          tt.remainingMs = null;
-          tasksNow[idx] = tt;
-          setTodayTasks(tasksNow);
-          renderToday();
-          return;
+            // requestNotify() removed
+
+            const isResuming = t.status === "paused" && t.remainingMs > 0;
+            const ms = isResuming ? t.remainingMs : (t.minutes * 60000);
+
+            t.status = "running";
+            t.duration = t.duration || ms; // ensure duration is set
+            t.endsAt = Date.now() + ms;
+            t.startedAt = t.startedAt || Date.now();
+            t.remainingMs = null;
+            updateTask(t);
+            beep();
+          };
+          if (t.status !== "done") el.querySelector(".done-btn").onclick = () => {
+            t.status = "done";
+            t.completedAt = Date.now();
+            t.endsAt = null;
+            updateTask(t);
+          };
+          if (true) el.querySelector(".undo-btn").onclick = () => {
+            if (t.status === "todo") return;
+            t.status = "todo";
+            t.endsAt = null;
+            t.remainingMs = null;
+            t.completedAt = null;
+            updateTask(t);
+          };
+
+          list.appendChild(el);
+        });
+      };
+
+      const updateTask = (t) => {
+        const tasks = getToday();
+        const idx = tasks.findIndex(x => x.id === t.id);
+        if (idx >= 0) tasks[idx] = t;
+        setToday(tasks);
+        renderToday();
+      };
+
+      const renderHistory = () => {
+        const list = $("historyList");
+        list.innerHTML = "";
+
+        // Sort keys desc
+        const keys = Object.keys(days).sort().reverse();
+        // Exclude today
+        const pastKeys = keys.filter(k => k !== dateKey()).slice(0, 7);
+
+        if (!pastKeys.length) return list.innerHTML = `<div class="empty-state">Noch kein Verlauf.</div>`;
+
+        pastKeys.forEach(k => {
+          const day = days[k];
+          const done = day.tasks.filter(t => t.status === "done").length;
+          const total = day.tasks.length;
+
+          const el = document.createElement("div");
+          el.className = "item";
+          el.style.padding = "10px 14px";
+          el.innerHTML = `
+        <div class="row spread">
+          <strong>${formatDate(k)}</strong>
+          <span class="badge ${done === total ? 'done' : 'todo'}">${done}/${total}</span>
+        </div>
+      `;
+          list.appendChild(el);
+        });
+      };
+
+      // --- Modal Logic ---
+      const openTplModal = (tpl = null) => {
+        $("tplId").value = tpl ? tpl.id : "";
+        $("tplName").value = tpl ? tpl.name : "";
+        $("tplMinutes").value = tpl ? tpl.minutes : 25;
+        $("tplReps").value = tpl ? tpl.reps : 1;
+        $("tplModal").showModal();
+      };
+
+      $("tplForm").onsubmit = (e) => {
+        // e.preventDefault() handled by dialog method="dialog" but we need to guard
+        const data = {
+          id: $("tplId").value || uid(),
+          name: $("tplName").value,
+          minutes: Number($("tplMinutes").value),
+          reps: Number($("tplReps").value)
+        };
+
+        if ($("tplId").value) {
+          // Edit
+          const idx = templates.findIndex(t => t.id === data.id);
+          if (idx >= 0) templates[idx] = data;
+        } else {
+          // New
+          templates.push(data);
         }
+        save();
+        renderTemplates();
+        toast("Template gespeichert");
+      };
+
+      $("openTplModalBtn").onclick = () => openTplModal();
+
+      $("regenTodayBtn").onclick = () => {
+        confirmDialog("Heute neu generieren?", "Alle heutigen Fortschritte gehen verloren.", () => {
+          ensureToday(true);
+          renderToday();
+          toast("Plan neu generiert");
+        });
+      };
+
+      // --- Global Toggles ---
+      $("soundToggle").onchange = (e) => {
+        cfg.sound = e.target.checked;
+        save();
+      };
+      $("notifyToggle").onchange = (e) => {
+        cfg.notifications = e.target.checked;
+        save();
+        if (cfg.notifications) requestNotify();
+      };
+
+      // --- Import/Export ---
+      $("wipeBtn").onclick = () => confirmDialog("Alles löschen?", "Wirklich ALLES löschen?", () => {
+        localStorage.clear();
+        location.reload();
       });
 
-      todayList.appendChild(item);
-    });
-  };
+      $("exportBtn").onclick = () => {
+        const data = JSON.stringify({ templates, days, cfg });
+        const blob = new Blob([data], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `blocktimer-${dateKey()}.json`;
+        a.click();
+        toast("Export gestartet");
+      };
 
-  const renderHistory = () => {
-    historyList.innerHTML = "";
-    const keys = Object.keys(days).sort().reverse();
-    const last7 = keys.slice(0, 7);
+      $("importBtn").onclick = () => $("importFile").click();
+      $("importFile").onchange = async (e) => {
+        const f = e.target.files[0];
+        if (!f) return;
+        try {
+          const text = await f.text();
+          const json = JSON.parse(text);
+          if (json.templates) templates = json.templates;
+          if (json.days) days = json.days;
+          if (json.cfg) cfg = json.cfg;
+          save();
+          location.reload();
+        } catch (err) {
+          alert("Import fehlerhaft");
+        }
+      };
 
-    if (!last7.length) {
-      const div = document.createElement("div");
-      div.className = "small";
-      div.textContent = "Noch kein Verlauf.";
-      historyList.appendChild(div);
-      return;
-    }
+      // --- Loop ---
+      const tick = () => {
+        const now = Date.now();
+        const tasks = getToday();
+        let changed = false;
+        const running = tasks.find(t => t.status === "running");
 
-    last7.forEach(k => {
-      const day = days[k];
-      const tasks = day?.tasks || [];
-      const done = tasks.filter(t => t.status === "done").length;
-      const card = document.createElement("div");
-      card.className = "item";
-      card.innerHTML = `
-        <div class="top">
-          <div><strong>${k}</strong></div>
-          <span class="badge ${done === tasks.length && tasks.length ? "done":"todo"}">${done}/${tasks.length} erledigt</span>
-        </div>
-        <div class="small" style="margin-top:6px; opacity:.8;">
-          ${tasks.slice(0,6).map(t => `${escapeHTML(t.name)}${t.status==="done" ? " ✓" : ""}`).join(" · ")}
-          ${tasks.length > 6 ? " …" : ""}
-        </div>
-      `;
-      historyList.appendChild(card);
-    });
-  };
+        if (running) {
+          // Check finish
+          if (now >= running.endsAt) {
+            running.status = "done";
+            running.completedAt = now;
+            running.endsAt = null;
+            changed = true;
+            notify("Block beendet!", running.name);
+          } else {
+            // Update Title
+            const m = Math.ceil((running.endsAt - now) / 60000);
+            document.title = `(${m}m) ${running.name}`;
+          }
+        } else {
+          document.title = "Blocktimer";
+        }
 
-  const escapeHTML = (s) => String(s).replace(/[&<>"']/g, (c) => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"
-  }[c]));
+        if (changed) {
+          setToday(tasks);
+          renderToday();
+        } else if (running) {
+          updateRunningUI(running);
+        }
+      };
 
-  const tick = () => {
-    const tasks = getTodayTasks();
-    const now = Date.now();
-    let changed = false;
+      // --- Init ---
+      load();
+      ensureToday();
 
-    for (const t of tasks) {
-      if (t.status === "running" && t.endsAt && now >= t.endsAt) {
-        t.status = "done";
-        t.completedAt = now;
-        t.endsAt = null;
-        changed = true;
-        beep();
-      }
-    }
+      $("soundToggle").checked = !!cfg.sound;
+      $("notifyToggle").checked = !!cfg.notifications;
+      $("todayLabel").textContent = formatDate(new Date());
 
-    if (changed) {
-      setTodayTasks(tasks);
-    }
-    // re-render für Restzeit
-    renderToday();
-  };
+      renderTemplates();
+      renderToday();
+      renderHistory();
 
-  addTplBtn.addEventListener("click", () => {
-    const name = (tplName.value || "").trim();
-    const minutes = Math.max(1, Math.floor(Number(tplMinutes.value) || 25));
-    const reps = Math.max(1, Math.min(10, Math.floor(Number(tplReps.value) || 1)));
+      const updateRunningUI = (t) => {
+        const left = Math.max(0, t.endsAt - Date.now());
+        const minutes = Math.floor(left / 60000);
+        const seconds = Math.floor((left % 60000) / 1000);
+        const timeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
 
-    if (!name) {
-      showMsg(tplMsg, "Bitte gib einen Namen für das Template an.");
-      return;
-    }
-    templates.push({ id: uid(), name, minutes, reps });
-    saveJSON(K_TPL, templates);
+        document.title = `${timeStr} - ${t.name}`;
 
-    tplName.value = "";
-    tplMinutes.value = String(minutes);
-    tplReps.value = "1";
+        const timeEl = document.getElementById(`time-${t.id}`);
+        const barEl = document.getElementById(`bar-${t.id}`);
 
-    renderTemplates();
-    showMsg(tplMsg, "Template angelegt. Erzeuge heute neu, wenn Du es sofort in „Heute“ willst.", "ok");
-  });
+        if (timeEl) timeEl.textContent = timeStr;
+        if (barEl) {
+          const progress = 100 - (left / t.duration * 100);
+          barEl.style.width = `${progress}%`;
+        }
+      };
 
-  regenTodayBtn.addEventListener("click", () => {
-    ensureToday(true);
-    renderToday();
-    renderHistory();
-    showMsg(tplMsg, "Heute wurde neu aus Templates erzeugt (überschrieben).", "ok");
-  });
+      setInterval(tick, 1000);
 
-  soundToggle.addEventListener("change", () => {
-    cfg.sound = !!soundToggle.checked;
-    saveJSON(K_CFG, cfg);
-  });
-
-  const applyImportPayload = (obj) => {
-    if (!obj || typeof obj !== "object") throw new Error("Ungültig");
-    templates = Array.isArray(obj.templates) ? obj.templates : templates;
-    days = (obj.days && typeof obj.days === "object") ? obj.days : days;
-    cfg = (obj.cfg && typeof obj.cfg === "object") ? obj.cfg : cfg;
-    saveJSON(K_TPL, templates);
-    saveJSON(K_DAYS, days);
-    saveJSON(K_CFG, cfg);
-    soundToggle.checked = !!cfg.sound;
-    ensureToday(false);
-    renderTemplates();
-    renderToday();
-    renderHistory();
-    showMsg(tplMsg, "Import übernommen.", "ok");
-  };
-
-  const exportPayload = () => JSON.stringify({ templates, days, cfg }, null, 2);
-
-  exportBtn.addEventListener("click", async () => {
-    const json = exportPayload();
-    const filename = `blocktimer-export-${dateKey()}.json`;
-
-    if (window.showSaveFilePicker) {
-      try {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: filename,
-          types: [
-            { description: "JSON", accept: { "application/json": [".json"] } },
-          ],
-        });
-        const writable = await handle.createWritable();
-        await writable.write(json);
-        await writable.close();
-        showMsg(tplMsg, "Export gespeichert.", "ok");
-        return;
-      } catch (err) {
-        if (err?.name === "AbortError") return;
-      }
-    }
-
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  });
-
-  importBtn.addEventListener("click", async () => {
-    if (window.showOpenFilePicker) {
-      try {
-        const [handle] = await window.showOpenFilePicker({
-          multiple: false,
-          types: [
-            { description: "JSON", accept: { "application/json": [".json"] } },
-          ],
-        });
-        const file = await handle.getFile();
-        const raw = await file.text();
-        applyImportPayload(JSON.parse(raw));
-        return;
-      } catch (err) {
-        if (err?.name === "AbortError") return;
-        showMsg(tplMsg, "Konnte den Datei-Dialog nicht öffnen. Bitte Datei manuell wählen.");
-      }
-    }
-
-    importFile.value = "";
-    importFile.click();
-  });
-
-  importFile.addEventListener("change", async () => {
-    const file = importFile.files?.[0];
-    if (!file) return;
-    try {
-      const raw = await file.text();
-      applyImportPayload(JSON.parse(raw));
-    } catch (e) {
-      showMsg(tplMsg, "Import fehlgeschlagen: JSON ist ungültig oder unvollständig.");
-    }
-  });
-
-  wipeBtn.addEventListener("click", () => {
-    const ok = confirm("Wirklich alles löschen? (Templates + Verlauf)");
-    if (!ok) return;
-    localStorage.removeItem(K_TPL);
-    localStorage.removeItem(K_DAYS);
-    localStorage.removeItem(K_CFG);
-    templates = [];
-    days = {};
-    cfg = { sound: true };
-    soundToggle.checked = true;
-    ensureToday(false);
-    renderTemplates();
-    renderToday();
-    renderHistory();
-    showMsg(tplMsg, "Alles gelöscht.", "ok");
-  });
-
-  // init
-  todayLabel.textContent = prettyDate(new Date()) + " • lokal gespeichert";
-  ensureToday(false);
-  renderTemplates();
-  renderToday();
-  renderHistory();
-
-  // tick every second
-  setInterval(tick, 1000);
-})();
-</script>
+    })();
+  </script>
 </body>
+
 </html>
