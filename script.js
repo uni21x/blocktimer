@@ -225,32 +225,50 @@
     if (!cfg.sound) return;
     try {
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      const o = audioCtx.createOscillator();
-      const g = audioCtx.createGain();
       const t = audioCtx.currentTime;
-      // Soft Bell / Gong (C5)
-      o.type = "sine";
-      o.frequency.setValueAtTime(523.25, t);
-      o.frequency.exponentialRampToValueAtTime(523.25, t + 0.1);
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(0.3, t + 0.05);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
-      o.start(t);
-      o.stop(t + 1.5);
 
-      // Overtone (~G5)
+      // Deep Meditation Bowl (Lower pitch, longer decay)
+      const baseFreq = 180; // ~F3
+
+      // Fundamental
+      const o1 = audioCtx.createOscillator();
+      const g1 = audioCtx.createGain();
+      o1.connect(g1);
+      g1.connect(audioCtx.destination);
+      o1.type = "sine";
+      o1.frequency.setValueAtTime(baseFreq, t);
+      g1.gain.setValueAtTime(0, t);
+      g1.gain.linearRampToValueAtTime(0.3, t + 0.2); // Slower attack
+      g1.gain.exponentialRampToValueAtTime(0.001, t + 6.0); // Long decay
+      o1.start(t);
+      o1.stop(t + 6.0);
+
+      // Harmonic 1 (Octave)
       const o2 = audioCtx.createOscillator();
       const g2 = audioCtx.createGain();
       o2.connect(g2);
       g2.connect(audioCtx.destination);
       o2.type = "sine";
-      o2.frequency.value = 523.25 * 1.5;
+      o2.frequency.setValueAtTime(baseFreq * 2, t);
       g2.gain.setValueAtTime(0, t);
-      g2.gain.linearRampToValueAtTime(0.1, t + 0.05);
-      g2.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+      g2.gain.linearRampToValueAtTime(0.1, t + 0.1);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 4.0);
       o2.start(t);
-      o2.stop(t + 1.0);
-    } catch (e) { }
+      o2.stop(t + 4.0);
+
+      // Disharmonic (Metal character)
+      const o3 = audioCtx.createOscillator();
+      const g3 = audioCtx.createGain();
+      o3.connect(g3);
+      g3.connect(audioCtx.destination);
+      o3.type = "sine";
+      o3.frequency.setValueAtTime(baseFreq * 1.4, t); // Tritone-ish
+      g3.gain.setValueAtTime(0, t);
+      g3.gain.linearRampToValueAtTime(0.05, t + 0.05);
+      g3.gain.exponentialRampToValueAtTime(0.001, t + 2.0);
+      o3.start(t);
+      o3.stop(t + 2.0);
+    } catch (e) { console.error(e); }
   };
 
   const notify = (title, body) => {
