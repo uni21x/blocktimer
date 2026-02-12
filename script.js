@@ -227,13 +227,29 @@
       if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
       const o = audioCtx.createOscillator();
       const g = audioCtx.createGain();
+      const t = audioCtx.currentTime;
+      // Soft Bell / Gong (C5)
       o.type = "sine";
-      o.frequency.value = 880;
-      g.gain.value = 0.05;
-      o.connect(g);
-      g.connect(audioCtx.destination);
-      o.start();
-      setTimeout(() => o.stop(), 200);
+      o.frequency.setValueAtTime(523.25, t);
+      o.frequency.exponentialRampToValueAtTime(523.25, t + 0.1);
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.3, t + 0.05);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 1.5);
+      o.start(t);
+      o.stop(t + 1.5);
+
+      // Overtone (~G5)
+      const o2 = audioCtx.createOscillator();
+      const g2 = audioCtx.createGain();
+      o2.connect(g2);
+      g2.connect(audioCtx.destination);
+      o2.type = "sine";
+      o2.frequency.value = 523.25 * 1.5;
+      g2.gain.setValueAtTime(0, t);
+      g2.gain.linearRampToValueAtTime(0.1, t + 0.05);
+      g2.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
+      o2.start(t);
+      o2.stop(t + 1.0);
     } catch (e) { }
   };
 
