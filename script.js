@@ -169,6 +169,16 @@
     return `${h}h${m > 0 ? ` ${m}m` : ''}`;
   };
 
+  const escape = (str) => {
+    if (!str) return "";
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+  };
+
   // --- Storage ---
   const load = () => {
     try {
@@ -340,7 +350,7 @@
       el.className = "item";
       el.innerHTML = `
     <div class="item-header">
-      <div class="item-title">${tobj.name}</div>
+      <div class="item-title">${escape(tobj.name)}</div>
       <div class="row" style="gap:4px">
         <button class="icon-btn edit-btn">✏️</button>
         <button class="icon-btn del-btn" style="color:var(--danger)">🗑️</button>
@@ -357,7 +367,7 @@
 
       // Events
       el.querySelector(".del-btn").onclick = () => {
-        confirmDialog(t("delTplTitle"), t("delTplText", tobj.name), () => {
+        confirmDialog(t("delTplTitle"), t("delTplText", escape(tobj.name)), () => {
           templates = templates.filter(x => x.id !== tobj.id);
           save();
           renderTemplates();
@@ -476,7 +486,7 @@
       el.innerHTML = `
     <div class="progress-bar" id="bar-${tobj.id}" style="width:${progress}%"></div>
     <div class="item-header">
-      <div class="item-title">${tobj.name}</div>
+      <div class="item-title">${escape(tobj.name)}</div>
       <span class="badge ${badge}">${badgeText}</span>
     </div>
     <div class="item-meta spread">
@@ -486,7 +496,7 @@
          ${(tobj.status === "paused" || tobj.status === "todo") ? `<button class="primary play-btn" title="${t("btnStart")}" ${isLocked ? "disabled" : ""}>▶</button>` : ""}
          ${tobj.status !== "done" ? `<button class="ghost done-btn" title="${t("btnMarkDone")}" ${isLocked ? "disabled" : ""}>✓</button>` : ""}
          <button class="ghost undo-btn" 
-           title="${isRevLocked ? t("resetLocked", successorName) : t("btnReset")}" 
+           title="${isRevLocked ? t("resetLocked", escape(successorName)) : t("btnReset")}" 
            ${tobj.status === "todo" ? "disabled" : ""}
            style="${isRevLocked ? "opacity:0.5;" : ""}"
          >↺</button>
@@ -727,11 +737,11 @@
         running.completedAt = now;
         running.endsAt = null;
         changed = true;
-        notify(t("blockFinished"), t("blockFinishedBody", running.name));
+        notify(t("blockFinished"), t("blockFinishedBody", running.name)); // notification body is plain text usually, but good to be safe if HTML supported
       } else {
         // Update Title
         const m = Math.ceil((running.endsAt - now) / 60000);
-        document.title = `(${m}m) ${running.name}`;
+        document.title = `(${m}m) ${running.name}`; // Title is safe (text only)
       }
     } else {
       document.title = "Blocktimer";
@@ -763,7 +773,7 @@
     const left = Math.max(0, t.endsAt - Date.now());
     const timeStr = formatTime(left);
 
-    document.title = `${timeStr} - ${t.name}`;
+    document.title = `${timeStr} - ${t.name}`; // Title is safe
 
     const timeEl = document.getElementById(`time-${t.id}`);
     const barEl = document.getElementById(`bar-${t.id}`);
