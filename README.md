@@ -23,7 +23,7 @@ Blocktimer is a simple, beautiful, and privacy-focused time-blocking application
 
 ## 🛠️ Tech Stack
 
-- **Single File**: All logic (HTML, CSS, JS) is in one `index.html`.
+- **Components**: Separated into `index.html`, `style.css`, and `script.js` for better maintainability.
 - **Zero Dependencies**: No frameworks, no build tools. standard web technologies.
 - **Vibecoding**: Built through conversation and iteration with AI assistants.
 
