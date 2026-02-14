@@ -3,7 +3,7 @@
 > **A "Vibecoding" Project**  
 > _Started with OpenAI Codex, evolved and modernized with Google Antigravity._
 
-Blocktimer is a simple, beautiful, and privacy-focused time-blocking application that runs entirely in your browser. No servers, no tracking, just you and your focus blocks. It is contained within a **single HTML file**.
+Blocktimer is a simple, beautiful, and privacy-focused time-blocking application that runs entirely in your browser. No servers, no tracking, just you and your focus blocks.
 
 ![Blocktimer UI](demo.png)
 
